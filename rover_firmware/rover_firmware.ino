@@ -62,6 +62,53 @@ volatile long encoderCountLeft = 0;
 volatile long encoderCountRight = 0;
 
 // ============================================================
+// Interrupt Service Routines (ISRs) — encoder pulse counting
+// ============================================================
+// Polling (checking a pin's state inside loop(), over and over)
+// would work, but it's unreliable here: your encoder can spin
+// fast enough to produce pulses shorter than one pass through
+// loop(), especially once loop() also has WiFi and PID work in
+// it — you'd simply miss pulses, silently, with no error.
+//
+// An INTERRUPT solves this differently: instead of you asking
+// "has the pin changed?" repeatedly, the hardware itself pauses
+// whatever loop() is doing the INSTANT the pin changes, jumps to
+// run this small function, then resumes loop() exactly where it
+// left off. Nothing gets missed, regardless of what loop() was
+// busy doing.
+//
+// `IRAM_ATTR` is ESP32-specific (you won't see this on classic
+// AVR Arduino boards): it forces this function to be stored in
+// fast internal RAM rather than flash memory. This matters because
+// flash access can briefly pause during certain background
+// operations — an ISR living in flash could then run at the
+// worst possible moment. IRAM_ATTR guarantees it's always
+// immediately available.
+//
+// This is QUADRATURE decoding: the encoder has two output
+// channels (A and B), slightly out of phase with each other.
+// By triggering on channel A's rising edge and then checking
+// channel B's CURRENT state at that instant, we can tell not
+// just THAT the motor turned, but which DIRECTION — B's state
+// at the moment A rises is different depending on rotation
+// direction.
+void IRAM_ATTR onLeftEncoderA() {
+  if (digitalRead(ENC_L_B)) {
+    encoderCountLeft++;
+  } else {
+    encoderCountLeft--;
+  }
+}
+
+void IRAM_ATTR onRightEncoderA() {
+  if (digitalRead(ENC_R_B)) {
+    encoderCountRight++;
+  } else {
+    encoderCountRight--;
+  }
+}
+
+// ============================================================
 // setup() — runs ONCE when the board powers on or resets.
 // This is where you configure pin modes, start serial
 // communication, and do any one-time initialization.
@@ -88,6 +135,14 @@ void setup() {
   pinMode(ENC_R_A, INPUT);
   pinMode(ENC_R_B, INPUT);
 
+  // attachInterrupt(pin, function, triggerMode) registers an ISR.
+  // digitalPinToInterrupt() converts a plain GPIO number into the
+  // specific interrupt channel the hardware needs — always wrap
+  // your pin number in this, don't pass the raw number directly.
+  // RISING means "trigger when this pin transitions LOW -> HIGH."
+  attachInterrupt(digitalPinToInterrupt(ENC_L_A), onLeftEncoderA, RISING);
+  attachInterrupt(digitalPinToInterrupt(ENC_R_A), onRightEncoderA, RISING);
+
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
 
@@ -112,6 +167,35 @@ void loop() {
   // behavior one function at a time.
   driveMotors();
   readDistance();
+
+  // --- Non-blocking periodic debug print ---
+  // We want to print encoder counts every 500ms, WITHOUT using
+  // delay(500) — delay() would freeze the whole chip, including
+  // motor updates and (eventually) WiFi handling, for that entire
+  // half second. Every time, on every loop. That's not acceptable
+  // for a robot doing several things concurrently.
+  //
+  // Instead: compare the current time (millis(), which counts
+  // milliseconds since boot) against the last time we printed.
+  // If enough time has passed, print and update our "last time."
+  // This way loop() keeps running at full speed continuously —
+  // it just conditionally does the print, instead of stopping
+  // everything to wait.
+  //
+  // `static` here means this variable keeps its value between
+  // calls to loop() — normally a local variable resets every time
+  // a function runs, but `static` makes it persist, which is
+  // exactly what we need to remember "when did I last print?"
+  static unsigned long lastPrintTime = 0;
+  unsigned long now = millis();
+
+  if (now - lastPrintTime >= 500) {
+    lastPrintTime = now;
+    Serial.print("Encoders -> L: ");
+    Serial.print(encoderCountLeft);
+    Serial.print("  R: ");
+    Serial.println(encoderCountRight);
+  }
 }
 
 // ============================================================
