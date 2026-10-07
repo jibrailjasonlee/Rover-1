@@ -62,6 +62,73 @@ volatile long encoderCountLeft = 0;
 volatile long encoderCountRight = 0;
 
 // ============================================================
+// PID controller — closed-loop speed correction
+// ============================================================
+// Why this is needed: command both motors to the same PWM value
+// and they will NOT spin at the same actual speed. Manufacturing
+// variance, friction differences, even which side the battery
+// wire runs closer to — all cause small mismatches that add up
+// to the robot slowly curving instead of driving straight.
+// PID continuously compares ACTUAL speed (from the encoders) to
+// TARGET speed and corrects the PWM output to close that gap.
+//
+// A `struct` groups related variables into one named bundle.
+// Here, each motor needs its OWN independent PID state (its own
+// accumulated error, its own last-error value) — rather than
+// writing out separate kp_left, ki_left, integral_left, kp_right...
+// as a pile of loose variables, we define the shape ONCE as a
+// struct, then create two instances of it.
+//
+// IMPORTANT (this is the fix for the compile error you just hit):
+// this struct is defined here, ABOVE the first function in the
+// file (the ISRs below). The Arduino IDE auto-generates forward
+// declarations for every function and inserts them all at the
+// very top of the file before compiling — if a function's
+// signature uses PIDController and the struct itself is defined
+// further down the file than that insertion point, the generated
+// declaration references a type the compiler doesn't know about
+// yet. Keeping custom structs/classes above your first function
+// sidesteps this entirely.
+struct PIDController {
+  float kp;              // Proportional gain — reacts to the CURRENT error
+  float ki;              // Integral gain — reacts to ACCUMULATED past error
+  float kd;              // Derivative gain — reacts to how fast error is CHANGING
+  float integral = 0;    // Running total of error over time
+  float lastError = 0;   // Error from the previous update, for derivative math
+};
+
+// `float` is a new type here: unlike `int` or `long`, it holds
+// decimal values — essential for PID math, where gains like 0.5
+// or 2.3 are completely normal and an integer type couldn't
+// represent them at all.
+//
+// These starting gain values are reasonable PLACEHOLDERS, not
+// tuned numbers — real PID tuning is an empirical process you do
+// with the physical robot: start with only Kp nonzero, increase
+// it until the robot responds quickly without oscillating, then
+// add a small Ki to eliminate any steady drift, then a small Kd
+// if it overshoots. We'll do this properly once hardware arrives.
+PIDController pidLeft  = {2.0, 0.5, 0.1};
+PIDController pidRight = {2.0, 0.5, 0.1};
+
+// Note the `&` before PIDController — this passes the struct BY
+// REFERENCE, not by value. Without it, this function would receive
+// a COPY of pidLeft/pidRight, and any changes to .integral or
+// .lastError inside this function would vanish the moment it
+// returns — the whole point of tracking accumulated error over
+// time would silently break. `&` ensures we're modifying the
+// actual original struct, not a throwaway copy.
+float computePID(PIDController &pid, float setpoint, float actual, float dt) {
+  float error = setpoint - actual;
+
+  pid.integral += error * dt;
+  float derivative = (error - pid.lastError) / dt;
+  pid.lastError = error;
+
+  return (pid.kp * error) + (pid.ki * pid.integral) + (pid.kd * derivative);
+}
+
+// ============================================================
 // Interrupt Service Routines (ISRs) — encoder pulse counting
 // ============================================================
 // Polling (checking a pin's state inside loop(), over and over)
@@ -162,10 +229,10 @@ void setup() {
 // freeze execution while waiting on a timer.
 // ============================================================
 void loop() {
-  // Stub calls — these functions don't do anything real yet.
-  // We're building the program's SHAPE first, then filling in
-  // behavior one function at a time.
-  driveMotors();
+  // driveMotors() is gone now — updatePID() has taken over motor
+  // control, since speed is no longer a fixed hardcoded value but
+  // something continuously corrected against real encoder feedback.
+  updatePID();
   readDistance();
 
   // --- Non-blocking periodic debug print ---
@@ -249,15 +316,51 @@ void setMotorSpeed(uint8_t in1, uint8_t in2, uint8_t pwmPin, int speed) {
   analogWrite(pwmPin, abs(speed));
 }
 
-void driveMotors() {
-  // Placeholder target speeds for now — once we build the PID
-  // loop and WiFi control, these will come from real sources
-  // instead of being hardcoded here.
-  int targetSpeedLeft = 150;
-  int targetSpeedRight = 150;
+// --- State needed to measure actual speed from raw encoder counts ---
+long lastEncoderLeft = 0;
+long lastEncoderRight = 0;
 
-  setMotorSpeed(MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_L_PWM, targetSpeedLeft);
-  setMotorSpeed(MOTOR_R_IN1, MOTOR_R_IN2, MOTOR_R_PWM, targetSpeedRight);
+void updatePID() {
+  // Same non-blocking timing pattern from the encoder lesson —
+  // run this block on a fixed ~50ms cadence rather than every
+  // single pass through loop() (which happens far more often
+  // than that). Too fast and the encoder delta between updates
+  // is tiny and noisy; too slow and the robot reacts sluggishly.
+  static unsigned long lastTime = 0;
+  unsigned long now = millis();
+  unsigned long dtMs = now - lastTime;
+  if (dtMs < 50) return;
+
+  float dt = dtMs / 1000.0;  // milliseconds -> seconds, for the math below
+  lastTime = now;
+
+  // How many encoder pulses accumulated since the last update?
+  long deltaLeft = encoderCountLeft - lastEncoderLeft;
+  long deltaRight = encoderCountRight - lastEncoderRight;
+  lastEncoderLeft = encoderCountLeft;
+  lastEncoderRight = encoderCountRight;
+
+  // Convert raw pulse counts into a speed: pulses per second.
+  // (Once you know your encoder's pulses-per-revolution from the
+  // datasheet, this can be converted into real RPM — for now,
+  // pulses/sec works fine as a relative speed measure for PID.)
+  float actualSpeedLeft  = deltaLeft  / dt;
+  float actualSpeedRight = deltaRight / dt;
+
+  // Placeholder target — will come from WiFi commands in the
+  // teleop lesson, instead of being hardcoded here.
+  float targetSpeed = 300.0;
+
+  float outputLeft  = computePID(pidLeft,  targetSpeed, actualSpeedLeft,  dt);
+  float outputRight = computePID(pidRight, targetSpeed, actualSpeedRight, dt);
+
+  // (int) explicitly CONVERTS the float PID output into an int —
+  // C++ won't do this silently in a function call like this one,
+  // you have to ask for it. setMotorSpeed() still clamps to
+  // ±255 internally via constrain(), so this is a safe handoff
+  // even if the PID math briefly produces a wild value.
+  setMotorSpeed(MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_L_PWM, (int)outputLeft);
+  setMotorSpeed(MOTOR_R_IN1, MOTOR_R_IN2, MOTOR_R_PWM, (int)outputRight);
 }
 
 void readDistance() {
