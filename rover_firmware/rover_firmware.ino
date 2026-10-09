@@ -10,6 +10,14 @@
 //   handleWebRequests() <- WiFi teleop
 // ============================================================
 
+// `#include` pulls in code from a LIBRARY — pre-written, reusable
+// functionality someone else built so you don't have to implement
+// WiFi hardware handling or HTTP parsing from scratch. These two
+// come bundled with the ESP32 board package you installed earlier
+// (no separate download needed).
+#include <WiFi.h>       // Connects the ESP32 to your WiFi network
+#include <WebServer.h>  // Lets the ESP32 act as a basic web server
+
 // --- #define vs const: a quick note ---
 // #define is a PREPROCESSOR directive: before your code is even
 // compiled, the compiler does a dumb find-and-replace, swapping
@@ -129,6 +137,90 @@ float computePID(PIDController &pid, float setpoint, float actual, float dt) {
 }
 
 // ============================================================
+// WiFi teleoperation — control the robot from a phone browser
+// ============================================================
+// Replace these with your actual home WiFi credentials. This
+// connects the ESP32 to your EXISTING network (called "station
+// mode") rather than the ESP32 creating its own network ("access
+// point mode"). Station mode is simpler to start with — your
+// phone and the robot just need to already be on the same WiFi —
+// though it does mean your robot can't drive anywhere outside
+// your WiFi's range, which AP mode would solve later if needed.
+const char* WIFI_SSID = "YOUR_WIFI_NAME";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+
+// Port 80 is the standard, default port for plain HTTP — using it
+// means a phone browser can reach the robot with just an IP
+// address, no special port number needed in the URL.
+WebServer server(80);
+
+// These replace the single hardcoded `targetSpeed` from the PID
+// lesson. Having INDEPENDENT left/right targets is what makes
+// turning possible — forward is both wheels equal, a turn is
+// the two wheels given different (even opposite-sign) targets.
+float targetSpeedLeft = 0;
+float targetSpeedRight = 0;
+
+const float DRIVE_SPEED = 300.0;  // counts/sec — same units updatePID() already uses
+const float TURN_SPEED = 200.0;   // slightly gentler, for in-place turns
+
+// --- Request handlers ---
+// server.on(path, handlerFunction) tells the WebServer: "when a
+// request comes in for this URL, run this function." Each handler
+// here does two things: update the global target speeds (which
+// updatePID() reads on its own very next cycle — no extra wiring
+// needed, since it's already reading these globals every 50ms),
+// and send a response back so the browser knows the request landed.
+void handleRoot() {
+  // This is a minimal HTML page with buttons. Each button's
+  // onclick runs a small bit of JavaScript (fetch(...)) that
+  // sends a request to the matching endpoint below, without
+  // reloading the whole page.
+  String html =
+    "<!DOCTYPE html><html><body style='text-align:center;font-family:sans-serif;'>"
+    "<h2>Rover Control</h2>"
+    "<button onclick=\"fetch('/forward')\" style='font-size:24px;padding:20px;'>Forward</button><br><br>"
+    "<button onclick=\"fetch('/left')\" style='font-size:24px;padding:20px;'>Left</button>"
+    "<button onclick=\"fetch('/stop')\" style='font-size:24px;padding:20px;'>Stop</button>"
+    "<button onclick=\"fetch('/right')\" style='font-size:24px;padding:20px;'>Right</button><br><br>"
+    "<button onclick=\"fetch('/backward')\" style='font-size:24px;padding:20px;'>Backward</button>"
+    "</body></html>";
+  server.send(200, "text/html", html);
+}
+
+void handleForward() {
+  targetSpeedLeft = DRIVE_SPEED;
+  targetSpeedRight = DRIVE_SPEED;
+  server.send(200, "text/plain", "OK");
+}
+
+void handleBackward() {
+  targetSpeedLeft = -DRIVE_SPEED;
+  targetSpeedRight = -DRIVE_SPEED;
+  server.send(200, "text/plain", "OK");
+}
+
+void handleLeft() {
+  // Opposite signs on the two wheels = rotate in place, rather
+  // than a wide arcing turn.
+  targetSpeedLeft = -TURN_SPEED;
+  targetSpeedRight = TURN_SPEED;
+  server.send(200, "text/plain", "OK");
+}
+
+void handleRight() {
+  targetSpeedLeft = TURN_SPEED;
+  targetSpeedRight = -TURN_SPEED;
+  server.send(200, "text/plain", "OK");
+}
+
+void handleStop() {
+  targetSpeedLeft = 0;
+  targetSpeedRight = 0;
+  server.send(200, "text/plain", "OK");
+}
+
+// ============================================================
 // Interrupt Service Routines (ISRs) — encoder pulse counting
 // ============================================================
 // Polling (checking a pin's state inside loop(), over and over)
@@ -218,6 +310,33 @@ void setup() {
   // it up before any motor command will have an effect.
   digitalWrite(STBY, HIGH);
 
+  // Connect to WiFi. Note: delay() here is fine — this is
+  // DIFFERENT from the no-delay() rule in loop(). This blocking
+  // wait happens ONCE, during setup(), before the robot is doing
+  // anything time-sensitive like motor control or sensor polling.
+  // The rule was specifically about loop(), which runs constantly
+  // once the robot is active — not about setup(), which only runs
+  // once at the very start.
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.print("Connected! Open this on your phone: http://");
+  Serial.println(WiFi.localIP());
+
+  // Register each URL path with the function that should handle
+  // it, then start the server listening for requests.
+  server.on("/", handleRoot);
+  server.on("/forward", handleForward);
+  server.on("/backward", handleBackward);
+  server.on("/left", handleLeft);
+  server.on("/right", handleRight);
+  server.on("/stop", handleStop);
+  server.begin();
+
   Serial.println("Rover firmware initialized.");
 }
 
@@ -229,6 +348,12 @@ void setup() {
 // freeze execution while waiting on a timer.
 // ============================================================
 void loop() {
+  // server.handleClient() checks for and processes any incoming
+  // web request. It returns almost instantly if nothing's waiting,
+  // so — same philosophy as avoiding delay() — it's safe to call
+  // every single pass through loop() without blocking anything else.
+  server.handleClient();
+
   // driveMotors() is gone now — updatePID() has taken over motor
   // control, since speed is no longer a fixed hardcoded value but
   // something continuously corrected against real encoder feedback.
@@ -347,12 +472,13 @@ void updatePID() {
   float actualSpeedLeft  = deltaLeft  / dt;
   float actualSpeedRight = deltaRight / dt;
 
-  // Placeholder target — will come from WiFi commands in the
-  // teleop lesson, instead of being hardcoded here.
-  float targetSpeed = 300.0;
-
-  float outputLeft  = computePID(pidLeft,  targetSpeed, actualSpeedLeft,  dt);
-  float outputRight = computePID(pidRight, targetSpeed, actualSpeedRight, dt);
+  // targetSpeedLeft / targetSpeedRight are globals, set by
+  // whichever web handler last ran (handleForward, handleLeft,
+  // etc.) — this is the live link between "someone tapped a
+  // button on their phone" and "the motors actually respond,"
+  // closed through the same PID math we already built.
+  float outputLeft  = computePID(pidLeft,  targetSpeedLeft,  actualSpeedLeft,  dt);
+  float outputRight = computePID(pidRight, targetSpeedRight, actualSpeedRight, dt);
 
   // (int) explicitly CONVERTS the float PID output into an int —
   // C++ won't do this silently in a function call like this one,
