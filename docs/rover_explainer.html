@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How the rover thinks</title>
+<style>
+:root{--bg:#f2f5f9;--sf:#fff;--ink:#13202d;--mut:#586878;--ln:#d3dce6;--ac:#1d5fd1;--fb:#d4470c;--ok:#18794a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1520;--sf:#16212e;--ink:#e7eef5;--mut:#9aabbb;--ln:#2a3a4b;--ac:#7aa9ff;--fb:#ff9d68;--ok:#62d69c}}
+:root[data-theme="dark"]{--bg:#0d1520;--sf:#16212e;--ink:#e7eef5;--mut:#9aabbb;--ln:#2a3a4b;--ac:#7aa9ff;--fb:#ff9d68;--ok:#62d69c}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+.w{max-width:920px;margin:0 auto;padding:24px 18px 60px}
+h1,h2{font-family:"Iowan Old Style",Georgia,serif;line-height:1.15;margin:0}
+h1{font-size:clamp(30px,6vw,46px);letter-spacing:-.01em}
+h2{font-size:26px;margin:44px 0 6px}
+h3{margin:0 0 4px;font-size:18px}
+.lede{color:var(--mut);max-width:60ch;margin:10px 0 0}
+p{max-width:68ch}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:10px;padding:16px;margin-top:14px}
+svg{max-width:100%;height:auto;display:block}
+.n rect{fill:var(--sf);stroke:var(--ln);stroke-width:1.5;cursor:pointer;transition:fill .15s,stroke .15s}
+.n text{fill:var(--ink);font-size:13px;text-anchor:middle;pointer-events:none}
+.n.on rect{fill:var(--ac);stroke:var(--ac)}.n.on text{fill:var(--bg);font-weight:600}
+.n:focus{outline:none}.n:focus-visible rect{stroke:var(--fb);stroke-width:3}
+.ring{fill:none;stroke:var(--fb);stroke-width:2;stroke-dasharray:3 7;opacity:.7}
+button{font:inherit;color:var(--ink);background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--ac)}button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid var(--fb);outline-offset:2px}
+button.on{background:var(--ac);border-color:var(--ac);color:var(--bg)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+pre{margin:8px 0 0;padding:12px;background:var(--bg);border:1px solid var(--ln);border-radius:8px;overflow-x:auto;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace}
+canvas{width:100%;height:auto;display:block;background:var(--bg);border:1px solid var(--ln);border-radius:8px;margin-top:10px}
+.lab{display:grid;grid-template-columns:110px 1fr 56px;gap:8px;align-items:center;margin-top:8px;font-size:15px}
+input[type=range]{width:100%;accent-color:var(--ac)}
+.big{font-variant-numeric:tabular-nums;font-weight:600;color:var(--ac)}
+details{background:var(--sf);border:1px solid var(--ln);border-radius:10px;margin-top:10px;padding:0 16px}
+summary{cursor:pointer;padding:13px 0;font-weight:600}
+details[open] summary{border-bottom:1px solid var(--ln);margin-bottom:10px}
+details p{margin:0 0 8px}.c{color:var(--mut);font-size:14px}
+.warn{border-left:4px solid var(--fb)}
+ul{padding-left:20px;max-width:68ch}li{margin:6px 0}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body><div class="w">
+<h1>How the rover thinks</h1>
+<p class="lede">One loop, eight steps. Learn the loop first, play with the three ideas inside it, then read the code with the picture in your head.</p>
+
+<h2>The loop</h2>
+<p class="c">Tap any step, or press Play. The dotted ring is the point: the robot keeps checking its own result.</p>
+<div class="card"><div class="row"><button id="play">Play</button></div>
+<svg id="ringsvg" viewBox="0 0 720 300" role="group" aria-label="The eight steps of the rover control loop"></svg>
+<h3 id="nt"></h3><p id="ns" style="margin:0"></p><pre id="nc"></pre></div>
+
+<h2>Three ideas to play with</h2>
+<p class="c">Each one is a few lines of your firmware. Change the controls and watch what happens.</p>
+<div class="card">
+<div class="row" role="tablist"><button class="on" data-t="pwm">Speed control (PWM)</button><button data-t="enc">Counting turns (encoder)</button><button data-t="pid">Self-correcting (PID)</button></div>
+
+<div id="pwm">
+<p>A pin is only ever on or off. To get "half speed", flip it on and off very fast and spend half the time on. The motor feels the average.</p>
+<div class="lab"><label for="duty">analogWrite</label><input id="duty" type="range" min="0" max="255" value="150"><span class="big" id="dv"></span></div>
+<canvas id="cp" width="640" height="200"></canvas>
+<p id="pt"></p></div>
+
+<div id="enc" hidden>
+<p>Each motor has two sensors, A and B, slightly out of step. When A switches on, your interrupt checks B. B high means one direction, B low means the other.</p>
+<div class="row"><button id="ef">Turn forward</button><button id="er">Turn backward</button><span>Count: <span class="big" id="ec">0</span></span></div>
+<canvas id="ce" width="640" height="200"></canvas>
+<p id="et" class="c">Press a button to turn the shaft one notch.</p></div>
+
+<div id="pid" hidden>
+<p>Goal: 300 ticks per second. The simulated motor has a mind of its own, like a real one. Try Kp alone, then add Ki.</p>
+<div class="lab"><label for="kp">Kp (now)</label><input id="kp" type="range" min="0" max="6" step=".1" value="2"><span class="big" id="kpv"></span></div>
+<div class="lab"><label for="ki">Ki (history)</label><input id="ki" type="range" min="0" max="3" step=".1" value=".5"><span class="big" id="kiv"></span></div>
+<div class="lab"><label for="kd">Kd (trend)</label><input id="kd" type="range" min="0" max="1" step=".05" value=".1"><span class="big" id="kdv"></span></div>
+<div class="row" style="margin-top:8px"><label><input id="weak" type="checkbox"> Weaker motor (30% less push)</label></div>
+<canvas id="cd" width="640" height="240"></canvas>
+<p id="dt"></p></div>
+</div>
+
+<h2>The code, top to bottom</h2>
+<p class="c">The order of the file is the order of these cards. Open the ones you want to explain.</p>
+<div id="tour"></div>
+
+<h2>Not built yet</h2>
+<div class="card warn"><ul>
+<li><b>readDistance()</b> is an empty stub. The ultrasonic sensor is wired in the plan but nothing reads it, so there is no obstacle avoidance yet.</li>
+<li><b>No failsafe.</b> If the phone disconnects, the last goal stays set and the robot keeps driving. A timeout that zeroes the goals fixes that.</li>
+<li><b>Units and gains are placeholders.</b> Ticks per second is not yet RPM, and Kp, Ki, Kd must be tuned on the real robot.</li>
+<li><b>No integral limit.</b> If a wheel is held still, the integral keeps growing. That is called windup.</li></ul></div>
+
+<h2>Say it to a friend in 30 seconds</h2>
+<div class="card"><p style="margin:0">"My robot has a tiny website on it. I tap Forward on my phone, and the robot writes down how fast each wheel should go. Twenty times a second it checks how fast the wheels are actually turning, using sensors that count shaft ticks, and nudges the power up or down to close the gap. That checking and correcting is the whole trick, and it's why two slightly different motors still drive in a straight line."</p></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id),css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const N=[
+["1 Phone","You tap Forward on a web page. The page is only buttons; each one asks the robot for a web address.","fetch('/forward')"],
+["2 Web server","The ESP32 runs a tiny website. When the request for /forward arrives, it runs the function you matched to that address.","server.on(\"/forward\", handleForward);\nserver.handleClient();   // every pass of loop()"],
+["3 Goal","The handler only writes down a goal: how fast each wheel should turn. It never touches the motors.","targetSpeedLeft  = DRIVE_SPEED;\ntargetSpeedRight = DRIVE_SPEED;"],
+["4 PID","Every 50 ms the robot compares the goal with how fast the wheel is really turning, and decides how hard to push.","out = kp*err + ki*integral + kd*deriv;"],
+["5 Motor driver","ESP32 pins are too weak for motors. The TB6612FNG is a switch: small signals from the ESP32 control big power from the battery.","digitalWrite(in1, HIGH);        // direction\nanalogWrite(pwmPin, abs(speed)); // how hard"],
+["6 Motors","The wheels turn. No two motors are identical, which is why one fixed power setting drives in a curve.","// physics, no code"],
+["7 Encoders","Each motor has a sensor that ticks as the shaft turns. Each tick interrupts the program instantly, so none are missed.","void IRAM_ATTR onLeftEncoderA(){\n  if (digitalRead(ENC_L_B)) encoderCountLeft++;\n  else encoderCountLeft--;\n}"],
+["8 Speed","Ticks since last time, divided by time passed, is the real speed. It goes back to step 4. The loop closes.","actualSpeedLeft = deltaLeft / dt;"]];
+const sv=$("ringsvg");let h='<ellipse class="ring" cx="360" cy="150" rx="280" ry="105"/>';
+N.forEach((n,i)=>{const a=(-135+i*45)*Math.PI/180,x=360+280*Math.cos(a),y=150+105*Math.sin(a);
+h+=`<g class="n" data-i="${i}" tabindex="0" role="button" aria-label="${n[0]}"><rect x="${x-62}" y="${y-20}" width="124" height="40" rx="8"/><text x="${x}" y="${y+5}">${n[0]}</text></g>`});
+sv.innerHTML=h;let cur=0,timer=null;
+function sel(i){cur=i;sv.querySelectorAll(".n").forEach((g,j)=>g.classList.toggle("on",j==i));$("nt").textContent=N[i][0].slice(2);$("ns").textContent=N[i][1];$("nc").textContent=N[i][2]}
+sv.querySelectorAll(".n").forEach(g=>{g.onclick=()=>{stop();sel(+g.dataset.i)};g.onkeydown=e=>{if(e.key=="Enter"||e.key==" "){e.preventDefault();g.onclick()}}});
+function stop(){clearInterval(timer);timer=null;$("play").textContent="Play"}
+$("play").onclick=()=>{if(timer){stop();return}$("play").textContent="Pause";sel((cur+1)%8);timer=setInterval(()=>sel((cur+1)%8),1800)};
+sel(0);
+
+document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-t]").forEach(x=>{x.classList.toggle("on",x==b);$(x.dataset.t).hidden=x!=b});({pwm:dp,enc:de,pid:dd})[b.dataset.t]()});
+function cx(id){const c=$(id),g=c.getContext("2d");g.clearRect(0,0,c.width,c.height);g.lineWidth=2;g.font="13px system-ui";return[g,c.width,c.height]}
+function dp(){const d=+$("duty").value/255,[g,W,H]=cx("cp"),P=100;$("dv").textContent=$("duty").value;
+g.strokeStyle=css("--ac");g.beginPath();for(let k=0;k<7;k++){const x=20+k*P;g.moveTo(x,160);g.lineTo(x,40);g.lineTo(x+d*P,40);g.lineTo(x+d*P,160);g.lineTo(x+P,160)}g.stroke();
+g.strokeStyle=css("--fb");g.setLineDash([6,5]);const y=160-d*120;g.beginPath();g.moveTo(10,y);g.lineTo(W-10,y);g.stroke();g.setLineDash([]);
+g.fillStyle=css("--fb");g.fillText("average the motor feels",W-190,y-6);
+$("pt").textContent=`On ${Math.round(d*100)}% of the time, so the motor sees about ${(d*6).toFixed(1)} V of the 6 V rail. 0 is stopped, 255 is full power.`}
+$("duty").oninput=dp;
+
+const ph=[[0,1],[1,1],[1,0],[0,0]];let pi=3,ecount=0,hA=[0],hB=[0];
+function step(dir){const o=ph[pi];pi=(pi+dir+4)%4;const n=ph[pi];let msg="Only B moved, so nothing is counted yet.";
+if(o[0]==0&&n[0]==1){const up=n[1]==1;ecount+=up?1:-1;msg=`A just rose and B is ${up?"high":"low"}, so the code does ${up?"count++":"count--"}.`}
+hA.push(n[0]);hB.push(n[1]);if(hA.length>14){hA.shift();hB.shift()}$("ec").textContent=ecount;$("et").textContent=msg;de()}
+function de(){const[g,W,H]=cx("ce"),s=40;[[hA,"A",50,"--ac"],[hB,"B",140,"--fb"]].forEach(([a,l,y,c])=>{g.strokeStyle=css(c);g.fillStyle=css(c);g.fillText(l,6,y+4);g.beginPath();a.forEach((v,i)=>{const x=24+i*s,yy=v?y-25:y+25;i?(g.lineTo(x,g.lastY),g.lineTo(x,yy)):g.moveTo(x,yy);g.lineTo(x+s,yy);g.lastY=yy});g.stroke()})}
+$("ef").onclick=()=>step(1);$("er").onclick=()=>step(-1);
+
+function sim(){const kp=+$("kp").value,ki=+$("ki").value,kd=+$("kd").value,gain=$("weak").checked?1.4:2,T=300,dt=.05,tau=.3,[g,W,H]=cx("cd");
+$("kpv").textContent=kp;$("kiv").textContent=ki;$("kdv").textContent=kd;
+let s=0,I=0,le=0,pts=[];for(let k=0;k<=120;k++){const e=T-s;I+=e*dt;const dv=k?(e-le)/dt:0;le=e;let u=kp*e+ki*I+kd*dv;u=Math.max(-255,Math.min(255,u));s+=dt*(gain*u-s)/tau;pts.push(s)}
+const ym=450,px=i=>20+i*(W-40)/120,py=v=>H-20-Math.max(-50,Math.min(ym,v))*(H-50)/ym*1;
+g.strokeStyle=css("--ln");g.setLineDash([6,5]);g.beginPath();g.moveTo(20,py(T));g.lineTo(W-10,py(T));g.stroke();g.setLineDash([]);g.fillStyle=css("--mut");g.fillText("goal 300",24,py(T)-6);
+g.strokeStyle=css("--ac");g.beginPath();pts.forEach((v,i)=>i?g.lineTo(px(i),py(v)):g.moveTo(px(i),py(v)));g.stroke();
+const f=pts[pts.length-1],mx=Math.max(...pts),err=Math.abs(T-f);
+$("dt").textContent=err<8?(mx>T*1.25?"It gets there, but overshoots to "+Math.round(mx)+" first.":"Settles on the goal. Smooth and accurate."):(Math.abs(f-T)>T?"Unstable: it swings wildly. Lower Kp.":"Stuck at "+Math.round(f)+", short of 300. Kp alone leaves a gap; raise Ki to close it.")}
+["kp","ki","kd","weak"].forEach(i=>$(i).oninput=$(i).onchange=sim);
+
+const C=[
+["Libraries and pin names","#include pulls in WiFi and web-server code someone else wrote. #define gives each pin a name, so MOTOR_L_PWM replaces a bare 14. Encoder pins sit on the ESP32's input-only pins, which is fine because they only listen.","#include <WiFi.h>\n#define MOTOR_L_PWM 14\n#define ENC_L_A 34"],
+["volatile counters","The encoder interrupt changes these numbers while loop() is busy elsewhere. volatile tells the compiler not to assume the value is unchanged between reads. Without it, optimization can hide updates.","volatile long encoderCountLeft = 0;"],
+["The PID struct","A struct bundles one controller's memory: gains, running integral, last error. Two instances give each wheel its own. It sits above every function on purpose: the Arduino IDE auto-writes function prototypes at the top of the file, and a prototype using PIDController fails if the type is not defined yet.","struct PIDController { float kp, ki, kd, integral, lastError; };\nPIDController pidLeft = {2.0, 0.5, 0.1};"],
+["computePID()","Takes the struct by reference (&) so changes to integral and lastError survive after the call. By value, they would vanish and the I and D terms would never work.","float computePID(PIDController &pid, float setpoint, float actual, float dt)"],
+["Web handlers","Each URL maps to a tiny function that sets the two goal variables and replies OK. The page's buttons call these with fetch(). Handlers never touch the motors; they only change the goal.","server.on(\"/left\", handleLeft);"],
+["Interrupt routines","On A's rising edge, read B to learn the direction. IRAM_ATTR keeps the function in fast RAM, so it is always ready, even during flash operations. Keep ISRs tiny: no prints, no delays.","void IRAM_ATTR onLeftEncoderA(){ ... }"],
+["setup()","Runs once: set pin modes, wake the driver by driving STBY high, connect to WiFi, register the URLs, attach the interrupts. delay() is fine here because nothing time-critical is running yet.","pinMode(STBY, OUTPUT);\ndigitalWrite(STBY, HIGH);\nattachInterrupt(digitalPinToInterrupt(ENC_L_A), onLeftEncoderA, RISING);"],
+["loop()","Runs forever. It must never block, so it contains no delay(). Each call is quick: handle any web request, run the PID if 50 ms have passed, and print debug info twice a second.","server.handleClient();\nupdatePID();\nreadDistance();"],
+["setMotorSpeed()","One reusable function for either motor. The sign of speed picks the direction through IN1/IN2, and the size sets the PWM. constrain() keeps wild PID outputs inside plus or minus 255.","setMotorSpeed(in1, in2, pwmPin, speed)"],
+["updatePID()","Every 50 ms: ticks since last time divided by elapsed seconds gives speed. Each wheel's speed is compared with its goal, computePID returns a power, and setMotorSpeed applies it. The millis() timer replaces delay().","if (millis() - lastTime < 50) return;"]];
+$("tour").innerHTML=C.map(c=>`<details><summary>${c[0]}</summary><p>${c[1]}</p><pre>${c[2].replace(/</g,"&lt;")}</pre></details>`).join("");
+dp();sim();
+</script></body></html>
