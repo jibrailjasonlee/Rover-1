@@ -1,0 +1,15 @@
+# SolidWorks temp/backup
+~$*
+*.tmp
+*.bak
+# Simulink
+slprj/
+*.slxc
+*.autosave
+*.asv
+# Arduino
+build/
+*.hex
+# OS
+.DS_Store
+Thumbs.db
