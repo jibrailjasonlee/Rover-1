@@ -1,13 +1,8 @@
-// Bench test 3: do the encoders count, and in the right direction?
-// Needs: ESP32 on USB, encoder wires connected, encoders powered from 3.3 V.
-// Turn each wheel BY HAND (motors off).
-// PASS: counts change when you turn a wheel, and "forward" gives a
-//       positive count. If forward counts down, swap that encoder's A and B wires.
-// Type r in the Serial Monitor and press Enter to zero both counts.
-// BONUS: mark the wheel, turn it exactly one full revolution, and read
-//        the count. That number is your real ticks-per-revolution.
-// If counts are zero or erratic, the encoder outputs may need 10 kohm
-// pull-up resistors to 3.3 V (pins 34-39 have no internal pull-ups).
+// turn each wheel by hand, motors off. counts should move and go up for forward.
+// counting down: swap that encoder's A and B. send 'r' over serial to zero.
+// turn a wheel exactly one revolution to get the real ticks per rev.
+// zeros or garbage: the encoder outputs may want 10k pull-ups to 3.3 V,
+// pins 34-39 don't have internal ones.
 
 #define ENC_L_A 34
 #define ENC_L_B 35

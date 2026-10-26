@@ -1,9 +1,6 @@
-// Bench test 2: do both motors turn, in both directions?
-// Needs: ESP32 on USB, TB6612FNG wired, motor rail on (6 V buck),
-//        all grounds shared. WHEELS OFF THE GROUND (or removed).
-// PASS: each motor turns forward, then backward, one at a time.
-// If a motor spins the wrong way: swap that motor's two wires.
-// If a motor hums but does not turn: raise TEST_PWM (try 120).
+// each motor forward then back, one at a time. WHEELS OFF THE GROUND.
+// needs the 6 V rail on and all grounds shared.
+// wrong direction: swap that motor's two wires. hums but won't turn: raise TEST_PWM.
 
 #define STBY        27
 #define MOTOR_L_IN1 26
@@ -13,7 +10,7 @@
 #define MOTOR_R_IN2 32
 #define MOTOR_R_PWM 13
 
-const int TEST_PWM = 80;   // out of 255: gentle on purpose
+const int TEST_PWM = 80;
 
 void setMotor(uint8_t in1, uint8_t in2, uint8_t pwmPin, int speed) {
   speed = constrain(speed, -255, 255);
@@ -27,7 +24,7 @@ void runMotor(const char* label, uint8_t in1, uint8_t in2, uint8_t pwmPin, int s
   Serial.println(label);
   setMotor(in1, in2, pwmPin, speed);
   delay(1500);
-  setMotor(in1, in2, pwmPin, 0);   // always stop before the next step
+  setMotor(in1, in2, pwmPin, 0);
   delay(1000);
 }
 
