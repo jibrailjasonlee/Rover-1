@@ -42,7 +42,7 @@ From the listings: motor 12 x 10 x 26 mm, 3 mm D-shaft, 150 RPM at 6 V no load. 
 
 No-load top speed: 150 RPM x 132 mm wheel circumference is about 0.33 m/s. Real speed under load will be lower.
 
-Motor axis height: the bracket puts the pocket centre 6.85 + 5.15 = 12 mm above the bracket tab faces, plus the 4 mm plate, so about 16 mm above the plate underside. Wheel radius is 21 mm, so the wheel bottom is about 5 mm below the plate. A caster has to be roughly that tall to keep the plate level, and the ones I've seen are 15 to 20 mm.
+Motor axis height: the bracket puts the pocket centre 6.85 + 5.15 = 12 mm above the bracket tab faces, plus the 4 mm plate, so about 16 mm above the plate underside. Wheel radius is 21 mm, so the wheel bottom is about 5 mm below the plate. The caster I bought is 34.5 mm tall, so the brackets go under the plate instead (D-014): axis 17 mm below the plate underside, plate 38 mm off the floor, so the caster needs a 3.5 mm spacer.
 
 Speed resolution: the firmware counts one tick per encoder pulse, and updates every 50 ms, so the smallest step it can see is 1 / 0.05 = 20 ticks/s.
 

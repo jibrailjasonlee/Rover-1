@@ -70,6 +70,18 @@ One sketch per subsystem (board, motors, encoders, ultrasonic, WiFi), run in ord
 
 Update 2026-10-25: the ESP32 wouldn't take an upload. Device Manager showed nothing new when I plugged it in, only COM1 in the IDE. The LED lights, so it has power. Charge-only cable is the main suspect, and a different cable is the first thing to try.
 
+## D-014: Motor brackets go under the plate (2026-10-26)
+
+The caster arrived as a spec sheet: 34.5 mm tall, 37 x 33 x 1.4 mm plate, 28 x 24 mm four-hole pattern. With the brackets on top of the plate the axis is 16 mm above the plate underside, so the plate would sit 5 mm off the floor and the caster would have to be 5 mm tall. That was my mistake in D-009 and requirements.md, I assumed casters were 15 to 20 mm and never checked.
+
+Flipping the brackets under the plate, seated on the existing 2 mm bosses, puts the axis 14 mm below the plate underside (12 mm pocket centre above the tab face + 2 mm boss). Wheel radius 21 mm, so the plate underside is 35 mm off the floor, against a 34.5 mm caster. 0.5 mm mismatch is about 0.7 degrees of tilt over the 150 mm plate, fine, and a 0.5 mm shim under the caster fixes it if it bothers me. The bracket block hangs about 9 mm above the floor.
+
+The caster has four holes and the plate has two slots, so the reprint needs a second slot pair or four fixed holes. Hole diameter unknown until it's in my hand.
+
+Untested: wheel radius is 21 mm from the listing, the bosses have to print 2.0 mm tall, and I haven't checked wheel to plate side clearance or the caster's swivel sweep. Next step is a SolidWorks assembly to measure the 14 mm.
+
+Update: the 14 mm was wrong. The 12 mm is measured from the bracket's block face, and the tabs stick out 3 mm past that face, so the face that touches the boss is 15 mm from the axis. Axis is 2 + 15 = 17 mm below the plate underside, which puts the plate underside at 17 + 21 = 38 mm. The caster is 34.5 mm, so it's 3.5 mm short and the front would sit high. Fix is a 3.5 mm printed spacer under the caster plate with longer screws, which works here because the caster is too short, not too tall. The alternative is a bracket with no raised tabs (14 mm, no spacer) but that's a second bracket design. Bracket block hangs about 9 mm off the floor if the block is 24 mm tall, which I haven't checked.
+
 ## D-013: Repo layout follows myo-hand (2026-10-25)
 
 Requirements and decisions live in docs/, CAD in cad/, firmware in firmware/, sim in sim/. Simulink's cache folder isn't tracked. The firmware had a lot of tutorial comments in it from when I was learning it, and I cut those down to the ones that say why.

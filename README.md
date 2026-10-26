@@ -42,6 +42,6 @@ The PID gains in rover.ino (2.0 / 0.5 / 0.1) are placeholders and the sim says t
 
 Firmware gaps: readDistance() is an empty stub, so no obstacle stop. Nothing zeroes the targets if the phone drops. The integral has no anti-windup, and the first PID call after boot sees a huge dt.
 
-Mechanical gaps: by my numbers the motor axis sits 16 mm above the plate underside and the wheels are 42 mm across, so the plate is about 5 mm off the floor. A typical caster is much taller than that, so the motor mounts probably have to move. The bracket pocket is 15.3 mm deep and I haven't measured how much of the 26 mm motor goes into it. The sensor wall has the wrong hole pattern and the ESP32 and driver mounts don't exist.
+Mechanical gaps: with the brackets on top the plate would sit about 5 mm off the floor, and the caster is 34.5 mm tall. The brackets have to go under the plate (D-014), which leaves the plate 38 mm off the floor against a 34.5 mm caster, so it needs a 3.5 mm spacer. All on paper, not yet checked in an assembly. The caster has four holes and the plate has two slots. The bracket pocket is 15.3 mm deep and I haven't measured how much of the 26 mm motor goes into it. The sensor wall has the wrong hole pattern and the ESP32 and driver mounts don't exist.
 
 The battery holder is a bare one with no switch or protection, so protected cells and an inline switch are on the list.
