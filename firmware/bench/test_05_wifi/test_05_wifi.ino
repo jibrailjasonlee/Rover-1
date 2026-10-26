@@ -1,7 +1,6 @@
-// Bench test 5: can the ESP32 join WiFi and serve a page?
-// Needs: ESP32 on USB only. Edit the two WiFi lines below first.
-// PASS: Serial Monitor prints an IP address; opening that address on a
-//       phone or laptop on the same WiFi shows a message and toggles the LED.
+// join wifi and serve a page. edit the two credentials below, don't commit them.
+// pass: serial prints an IP, opening it on the same network toggles the led.
+// 2.4 GHz only, and eduroam won't work.
 
 #include <WiFi.h>
 #include <WebServer.h>
