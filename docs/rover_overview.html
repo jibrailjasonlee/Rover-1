@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rover-1 Visual Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* layout concept: a drafting sheet. Title block on top, then one large x-ray drawing you can click through, then the systems behind it.
+   light = drafting paper, dark = blueprint. one accent (signal orange) marks whatever you selected. */
+:root{
+  --paper:#E8EEF1; --sheet:#F7F9FA; --ink:#13202A; --ink2:#46596A; --rule:#BFCCD5; --grid:#D9E3E9;
+  --accent:#C8460A; --accent-soft:#F6D9C9;
+  --printed:#AFC6D3; --printed-line:#3F6275; --rubber:#33414B; --steel:#8B9AA5; --board:#7DB08F; --power:#E3B15A; --sense:#A596D6; --cell:#C9D6DE;
+  --ok:#2F7D4F; --warn:#A8620A; --info:#2F5F9E;
+  --f-disp:'Barlow Condensed','Arial Narrow',sans-serif; --f-body:'IBM Plex Sans',system-ui,sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#08141F; --sheet:#0E2234; --ink:#DCEBF5; --ink2:#8EA8BB; --rule:#2A4961; --grid:#15304A;
+  --accent:#FF9B5C; --accent-soft:#4A2D1C;
+  --printed:#2E5870; --printed-line:#86BAD6; --rubber:#243C4E; --steel:#6F8798; --board:#2F6A4A; --power:#8C6A25; --sense:#4B4380; --cell:#35566C;
+  --ok:#6FD39A; --warn:#F0B35C; --info:#8DB8F2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#08141F; --sheet:#0E2234; --ink:#DCEBF5; --ink2:#8EA8BB; --rule:#2A4961; --grid:#15304A;
+  --accent:#FF9B5C; --accent-soft:#4A2D1C;
+  --printed:#2E5870; --printed-line:#86BAD6; --rubber:#243C4E; --steel:#6F8798; --board:#2F6A4A; --power:#8C6A25; --sense:#4B4380; --cell:#35566C;
+  --ok:#6FD39A; --warn:#F0B35C; --info:#8DB8F2; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-block:20px 56px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{font-family:var(--f-disp);font-weight:600;letter-spacing:.01em;line-height:1.05;margin:0;text-wrap:balance}
+h2{font-size:30px}
+h3{font-size:20px}
+p{margin:0}
+.mono{font-family:var(--f-mono)}
+.muted{color:var(--ink2)}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* title block */
+.tb{border:1.5px solid var(--ink);background:var(--sheet);display:grid;grid-template-columns:1fr;}
+.tb-main{padding:22px 22px 20px;border-bottom:1.5px solid var(--ink)}
+.tb-main h1{font-size:clamp(44px,8vw,84px);font-weight:700;text-transform:uppercase;letter-spacing:.02em}
+.tb-main p{max-width:62ch;margin-top:12px;color:var(--ink2);font-size:16px}
+.tb-cells{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.tb-cells div{padding:10px 14px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);min-width:0}
+.tb-cells small{display:block;font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.tb-cells b{font:600 22px var(--f-disp);letter-spacing:.01em}
+.sec-head{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;max-width:70ch}
+.sec-head .tag{font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+
+/* explorer */
+.explorer{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:20px;align-items:start}
+.sheet{background:var(--sheet);border:1px solid var(--ink);min-width:0}
+.bar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--rule)}
+.seg{display:inline-flex;border:1px solid var(--ink)}
+.seg button{font:500 13px var(--f-body);padding:6px 12px;background:transparent;color:var(--ink);border:0;border-right:1px solid var(--ink);cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--sheet)}
+.chk{display:inline-flex;gap:6px;align-items:center;font-size:13px}
+.draw{padding:8px;overflow-x:auto}
+.draw svg{display:block;width:100%;height:auto;min-width:560px}
+svg text{font-family:var(--f-mono);fill:var(--ink)}
+.t-sm{font-size:10.5px}.t-md{font-size:12px}.t-dim{fill:var(--ink2)!important}
+.grid-l{stroke:var(--grid);stroke-width:1}
+.grid-m{stroke:var(--rule);stroke-width:1}
+.dimline{stroke:var(--ink2);stroke-width:1;fill:none}
+.part{cursor:pointer;transition:opacity .15s}
+.part:focus{outline:none}
+.part:focus-visible{outline:2px solid var(--accent)}
+.has-sel .part:not(.is-sel){opacity:.28}
+.part.is-sel *{stroke:var(--accent)!important;stroke-width:2.6!important}
+.part.is-sel text{stroke:none!important}
+.c-printed{fill:var(--printed);stroke:var(--printed-line);stroke-width:1.2}
+.c-rubber{fill:var(--rubber);stroke:var(--ink2);stroke-width:1}
+.c-steel{fill:var(--steel);stroke:var(--ink);stroke-width:1}
+.c-board{fill:var(--board);stroke:var(--ink);stroke-width:1}
+.c-power{fill:var(--power);stroke:var(--ink);stroke-width:1}
+.c-sense{fill:var(--sense);stroke:var(--ink);stroke-width:1}
+.c-cell{fill:var(--cell);stroke:var(--ink);stroke-width:1}
+.c-hole{fill:var(--sheet);stroke:var(--ink);stroke-width:1}
+.dash{stroke-dasharray:5 3}
+.proposed{fill-opacity:.55;stroke-dasharray:5 3}
+.plate{fill-opacity:1}
+.mode-under .plate{fill-opacity:.12}
+.mode-under .toplayer{opacity:.18}
+.mode-xray .plate{fill-opacity:.3}
+.mode-surface .underlayer{opacity:1}
+.hide-boards .proposed-g{display:none}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:10px 12px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--ink2)}
+.legend i{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-1px;border:1px solid var(--ink)}
+
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel{background:var(--sheet);border:1px solid var(--ink);padding:16px 16px 14px;display:flex;flex-direction:column;gap:12px}
+.panel .cat{font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+.panel h3{font-size:28px}
+.panel dl{margin:0;display:grid;gap:10px}
+.panel dt{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:1px}
+.panel dd{margin:0}
+.chip{display:inline-block;font:500 12px var(--f-mono);padding:2px 8px;border:1px solid currentColor}
+.s-arrived{color:var(--ok)}.s-ordered{color:var(--info)}.s-tobuy{color:var(--warn)}.s-cad{color:var(--info)}.s-printed{color:var(--ok)}
+.plist{background:var(--sheet);border:1px solid var(--ink);padding:6px 0}
+.plist h4{margin:10px 14px 4px;font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+.plist button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;background:transparent;border:0;border-left:3px solid transparent;color:var(--ink);font:400 14px var(--f-body);padding:6px 14px;cursor:pointer}
+.plist button:hover{background:var(--grid)}
+.plist button[aria-pressed="true"]{border-left-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.plist button span:last-child{color:var(--ink2);font:400 12px var(--f-mono);white-space:nowrap}
+
+/* generic blocks */
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.fig{background:var(--sheet);border:1px solid var(--ink);padding:10px;min-width:0}
+.fig .scroll{overflow-x:auto}
+.fig svg{display:block;width:100%;height:auto}
+.fig figcaption,.cap{font-size:13px;color:var(--ink2);padding:8px 4px 2px;max-width:80ch}
+.demo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.pad{padding:14px 16px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btns button,.btn{font:500 14px var(--f-body);padding:8px 14px;background:var(--sheet);color:var(--ink);border:1px solid var(--ink);cursor:pointer}
+.btns button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.read{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:12px}
+.read div{background:var(--sheet);padding:8px 10px}
+.read small{display:block;font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.read b{font:500 18px var(--f-mono);font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;font-size:14px}
+.tscroll{overflow-x:auto;background:var(--sheet);border:1px solid var(--ink)}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);white-space:nowrap}
+td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.tool{background:var(--sheet);border:1px solid var(--ink);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.tool h3{font-size:24px}
+.tool .for{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.pill{display:inline-block;font:500 11.5px var(--f-mono);border:1px solid var(--ink2);padding:1px 7px;margin:2px 4px 2px 0;color:var(--ink2);cursor:pointer;background:transparent}
+.pill:hover{border-color:var(--accent);color:var(--accent)}
+.unk{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:1px;background:var(--rule);border:1px solid var(--ink)}
+.unk div{background:var(--sheet);padding:12px 14px}
+.unk b{display:block;font:600 17px var(--f-disp);letter-spacing:.02em;margin-bottom:2px}
+.foot{font:400 12px var(--f-mono);color:var(--ink2);border-top:1px solid var(--ink);padding-top:12px}
+@media (max-width:900px){.explorer,.two,.demo{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+<header class="tb">
+  <div class="tb-main">
+    <h1>Rover-1</h1>
+    <p>A two-wheel rover you drive from a phone browser. Each wheel has an encoder and its own speed loop, so it holds a speed and goes straight instead of drifting. A sonar on the front is meant to stop it before it hits a wall. Everything printed fits on a Bambu A1 Mini.</p>
+  </div>
+  <div class="tb-cells">
+    <div><small>Plate</small><b>150 × 110 × 4 mm</b></div>
+    <div><small>Support</small><b>2 wheels + caster</b></div>
+    <div><small>No-load top speed</small><b>≈ 0.33 m/s</b></div>
+    <div><small>Plate height</small><b>38 mm off floor</b></div>
+    <div><small>Brain</small><b>ESP32, 3.3 V</b></div>
+    <div><small>Status</small><b>CAD v2, not driving yet</b></div>
+  </div>
+</header>
+
+<section id="explore">
+  <div class="sec-head">
+    <span class="tag">Sheet 1 · The whole rover</span>
+    <h2>Click any part to see where it lives and why it is there</h2>
+    <p class="muted">The drawing is to scale from the CAD (1 mm = 4.4 px in plan). Solid parts exist in the model or on your desk. Dashed boards are proposed positions, because the ESP32 and driver mounts are the one thing not designed yet.</p>
+  </div>
+  <div class="explorer" id="explorer">
+    <div class="sheet" id="sheet">
+      <div class="bar">
+        <div class="seg" role="group" aria-label="View">
+          <button type="button" data-view="plan" aria-pressed="true">Plan</button>
+          <button type="button" data-view="side" aria-pressed="false">Side</button>
+        </div>
+        <div class="seg" role="group" aria-label="Layer" id="modeSeg">
+          <button type="button" data-mode="surface" aria-pressed="false">From above</button>
+          <button type="button" data-mode="xray" aria-pressed="true">X-ray</button>
+          <button type="button" data-mode="under" aria-pressed="false">Under the plate</button>
+        </div>
+        <label class="chk"><input type="checkbox" id="showBoards" checked> Proposed boards</label>
+      </div>
+      <div class="draw"><svg id="plan" viewBox="0 0 732 650" role="img" aria-label="Plan view of the rover chassis with every part drawn to scale"></svg>
+      <svg id="side" viewBox="0 0 760 450" role="img" aria-label="Side view of the rover showing the plate 38 millimetres above the floor, wheel, caster and sensor wall" hidden></svg></div>
+      <div class="legend">
+        <span><i style="background:var(--printed)"></i>Printed PLA</span>
+        <span><i style="background:var(--rubber)"></i>Wheels</span>
+        <span><i style="background:var(--steel)"></i>Motors, caster</span>
+        <span><i style="background:var(--board)"></i>Boards</span>
+        <span><i style="background:var(--power)"></i>Power</span>
+        <span><i style="background:var(--sense)"></i>Sensor</span>
+      </div>
+    </div>
+    <div class="side">
+      <div class="panel" id="panel" aria-live="polite"></div>
+      <div class="plist" id="plist"></div>
+    </div>
+  </div>
+</section>
+
+<section id="ride">
+  <div class="sec-head">
+    <span class="tag">Sheet 2 · Why the motors hang under the plate</span>
+    <h2>One number set the whole layout: 38 mm</h2>
+    <p class="muted">The first layout put the motor brackets on top of the plate. The real caster is 34.5 mm tall, so that layout was never going to work. Flipping the brackets underneath made the numbers line up, and the wheel then needed a notch in the plate.</p>
+  </div>
+  <div class="two">
+    <figure class="fig" style="margin:0">
+      <div class="scroll"><svg id="rideA" viewBox="0 0 430 330" role="img" aria-label="Brackets on top: axle 19 millimetres above the plate underside, plate only 2 millimetres off the floor, so the caster would need to be about 2 millimetres tall"></svg></div>
+      <figcaption>Wheel radius 21 mm, axle 19 mm above the plate underside (4 mm plate + 15 mm tab to axle): the wheel pokes only 2 mm below the plate, and that is all the gap a caster would get.</figcaption>
+    </figure>
+    <figure class="fig" style="margin:0">
+      <div class="scroll"><svg id="rideB" viewBox="0 0 430 330" role="img" aria-label="Brackets underneath: axle 17 millimetres below the plate underside, plate 38 millimetres above the floor, caster 34.5 plus 3.5 millimetre pads equals 38"></svg></div>
+      <figcaption>Everything else in the design follows from this: the 3.5 mm caster pads, the wheel notches, and the 9 mm ground clearance under the bracket block.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="drive">
+  <div class="sec-head">
+    <span class="tag">Sheet 3 · How it moves</span>
+    <h2>Two wheels, two speeds, one turn</h2>
+    <p class="muted">A differential-drive rover has no steering. It turns because one wheel goes faster than the other. The buttons use the same five commands as the firmware web page and the same speed constants, so the numbers below are what the code asks for.</p>
+  </div>
+  <div class="demo">
+    <div class="sheet">
+      <div class="pad">
+        <svg id="demoSvg" viewBox="0 0 420 300" role="img" aria-label="Top-down animation of the rover driving a commanded path" style="display:block;width:100%;height:auto"></svg>
+        <div class="btns" id="driveBtns" style="margin-top:10px">
+          <button type="button" data-cmd="forward">Forward</button>
+          <button type="button" data-cmd="left">Spin left</button>
+          <button type="button" data-cmd="right">Spin right</button>
+          <button type="button" data-cmd="back">Back</button>
+          <button type="button" data-cmd="stop" aria-pressed="true">Stop</button>
+        </div>
+        <label class="chk" style="margin-top:10px">Playback speed <input type="range" id="spd" min="1" max="12" value="6"> <span class="mono" id="spdv">×6</span></label>
+        <div class="read" id="read"></div>
+      </div>
+    </div>
+    <figure class="fig" style="margin:0">
+      <div class="scroll"><svg id="loopSvg" viewBox="0 0 520 520" role="img" aria-label="Control loop: phone sends a command, the ESP32 turns it into a target speed per wheel, a PID loop every 50 milliseconds drives the motor driver, the encoder measures speed and feeds back"></svg></div>
+      <figcaption>The loop runs every 50 ms on each wheel. The phone only changes the target. It never touches the motors directly, so a slow web request cannot stall the control.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="wiring">
+  <div class="sec-head">
+    <span class="tag">Sheet 4 · Power and signals</span>
+    <h2>Two bucks, because the motors are 6 V and the pack is not</h2>
+    <p class="muted">The pack swings from 8.4 V full to 6.0 V empty. The motors are 6 V parts, so running them from the pack would overdrive them by up to 40%. One buck holds the motors at 6.0 V. A second holds the ESP32 and sonar at 5.0 V. Everything shares one ground.</p>
+  </div>
+  <figure class="fig" style="margin:0">
+    <div class="scroll"><svg id="wireSvg" viewBox="0 0 1000 620" role="img" aria-label="Wiring block diagram: battery and switch feed two LM2596 buck converters; the 6 volt rail powers the TB6612 driver and motors, the 5 volt rail powers the ESP32 and ultrasonic sensor; GPIO pins connect the ESP32 to the driver, encoders and sensor" style="min-width:820px"></svg></div>
+    <figcaption>Thick orange lines are power. Thin lines are signals with their GPIO numbers. Pins are from the firmware #defines and get re-checked against the real board when the cable problem is solved.</figcaption>
+  </figure>
+</section>
+
+<section id="software">
+  <div class="sec-head">
+    <span class="tag">Sheet 5 · Software and what it made</span>
+    <h2>Which tool made or checks which part</h2>
+    <p class="muted">Tap a part name to jump to it in the drawing.</p>
+  </div>
+  <div class="tools" id="tools"></div>
+</section>
+
+<section id="parts">
+  <div class="sec-head">
+    <span class="tag">Sheet 6 · Bill of materials</span>
+    <h2>Everything on the rover, with where it comes from</h2>
+    <p class="muted">Status is from our chat as of Oct 27, 2026. Update it as parts arrive.</p>
+  </div>
+  <div class="tscroll"><table id="bom"></table></div>
+</section>
+
+<section id="unknowns">
+  <div class="sec-head">
+    <span class="tag">Sheet 7 · What is still a guess</span>
+    <h2>Open items before this is a finished robot</h2>
+  </div>
+  <div class="unk">
+    <div><b>Motor can depth</b>The bracket pocket is 15.3 mm deep. How much of the 26 mm motor is can has not been measured with calipers.</div>
+    <div><b>Encoder resolution</b>700 ticks per wheel turn assumes 7 pulses per motor turn and 100:1 gearing. Turn a wheel once in bench test 3 to find out.</div>
+    <div><b>Board mounts</b>The ESP32, driver and bucks have no mounts. The dashed boards show a layout that fits, not a design.</div>
+    <div><b>Insert fit</b>The listing says 4.2 mm outer diameter and the pilot hole is 4.2 mm. Heat-set pilots are normally a little smaller than the insert. Test one on the drilled part first.</div>
+    <div><b>ESP32 upload</b>The board will not take an upload, most likely a charge-only USB cable. Nothing in the firmware has run on hardware.</div>
+    <div><b>Firmware gaps</b>PID gains are placeholders that the sim says will chatter. No failsafe if the phone drops. Obstacle stop is an empty function.</div>
+    <div><b>Print orientation</b>With pads and a tall wall, the chassis needs supports somewhere. This is decided at the slicer, before the reprint.</div>
+    <div><b>Caster geometry</b>The caster drawn here is the retailer's STEP shape. Real height and swivel sweep get checked on the part.</div>
+  </div>
+</section>
+
+<p class="foot">Rover-1 · plate 150 × 110 mm · axle 17 mm below plate · plate 38 mm above floor · numbers from docs/decisions.md D-004 to D-014</p>
+</div>
+
+<script>
+(function(){
+var NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent){var e=document.createElementNS(NS,tag);for(var k in attrs){e.setAttribute(k,attrs[k]);}if(parent)parent.appendChild(e);return e;}
+function txt(parent,x,y,s,cls,anchor){var t=el('text',{x:x,y:y,'class':cls||'t-sm'},parent);if(anchor)t.setAttribute('text-anchor',anchor);t.textContent=s;return t;}
+
+/* ---------------- data ---------------- */
+var CATS={printed:'Printed',motion:'Motion',compute:'Compute and sense',power:'Power',hw:'Hardware'};
+var P=[
+{id:'plate',cat:'printed',name:'Chassis plate',short:'1 × PLA',qty:'1',price:'filament',status:'printed v1, v2 in CAD',sc:'cad',
+ spec:'150 × 110 × 4 mm, 5 mm corner radii. Four 6 mm × 2 mm bosses under the motor holes. Battery pocket 44 × 78 mm, 1.5 mm deep. Wheel notches 30 mm wide, from X 54.5 mm to the edge.',
+ where:'Everything bolts to it. Battery, boards and sensor wall on top. Motor brackets and caster pads underneath.',
+ does:'Holds every part at a fixed spacing and sets the ride height.',
+ why:'A flat plate fits the 180 mm bed with room to spare, and flat means it prints without supports for the plate itself. The bosses and pads give the heat-set inserts 6 to 7.5 mm of plastic instead of 4.',
+ tools:['SolidWorks','Bambu Studio','Git'],link:null},
+{id:'bracket',cat:'printed',name:'Motor brackets',short:'2 × PLA',qty:'2',price:'filament',status:'one printed, v2 pending',sc:'cad',
+ spec:'28 × 24 mm block. Pocket 12.3 × 10.3 × 15.3 mm with a shoulder stop. Two 3 mm tabs with 3.4 mm holes, 10 mm apart.',
+ where:'Under the plate at X ±35 to ±55 mm. Axle sits 17 mm below the plate underside.',
+ does:'Holds each N20 motor and locates its axle, and so the wheel, in all three directions.',
+ why:'A friction-fit pocket depends only on the can cross-section. N20 flange holes vary by supplier and no motor was in hand when this was designed. The shoulder face is the datum.',
+ tools:['SolidWorks','Bambu Studio'],link:null},
+{id:'pads',cat:'printed',name:'Caster pads',short:'4 × Ø8 × 3.5',qty:'4',price:'filament',status:'in CAD, not printed',sc:'cad',
+ spec:'Four Ø8 mm pads, 3.5 mm tall, 24 mm apart in X and 28 mm in Z, with 4.2 mm insert holes.',
+ where:'Under the rear of the plate, X ±12 mm, Z −50 and −22 mm.',
+ does:'Lift the caster 3.5 mm so the plate sits level.',
+ why:'Plate underside is 38 mm off the floor. The caster is 34.5 mm. The pads close the gap without a separate spacer part.',
+ tools:['SolidWorks'],link:null},
+{id:'wall',cat:'printed',name:'Sensor wall',short:'50 × 6 × 26',qty:'1',price:'filament',status:'being modelled',sc:'cad',
+ spec:'50 × 6 mm block, 26 mm tall, flush with the front edge. Four Ø1.8 mm blind holes on a 42 × 17.5 mm pattern, and a 13 mm wide notch at the top for the header.',
+ where:'Front edge of the plate, centred.',
+ does:'Holds the HC-SR04 facing forward, upside down, so the right-angle header points up through the notch.',
+ why:'First version hung off the plate edge on a knife-edge joint. On the plate it has real contact area. Raised from 22 to 26 mm so the top holes keep 5 mm of plastic above them.',
+ tools:['SolidWorks'],link:null},
+{id:'inserts',cat:'hw',name:'M3 heat-set inserts',short:'8 needed',qty:'8+',price:'see listing',status:'ordered',sc:'ordered',
+ spec:'Listing: 4.2 mm outer diameter, 4 mm long. Four hold the motor brackets, four hold the caster.',
+ where:'Pressed into the pad and boss holes from the underside.',
+ does:'Give the printed plate metal threads that survive being screwed in and out.',
+ why:'Screws cut straight into PLA strip after a few cycles. Inserts need a soldering iron, which is also on the list.',
+ tools:['Soldering iron'],link:'https://www.andymark.com/products/m3-heat-set-threaded-insert'},
+{id:'motor',cat:'motion',name:'N20 gearmotor + encoder',short:'2 × 6 V',qty:'2',price:'$8.85 USD ea',status:'ordered',sc:'ordered',
+ spec:'6 V, 150 RPM no load, 12 × 10 × 26 mm, 3 mm D-shaft, magnetic encoder with A and B channels.',
+ where:'Inside each bracket, shaft pointing outward into the wheel.',
+ does:'Turns the wheel, and the encoder reports how fast it is actually turning.',
+ why:'Encoder versions cost about $4 more each. Without them there is no feedback and no PID, only open-loop PWM.',
+ tools:['Arduino IDE','Simulink'],link:'https://www.robotshop.com/products/aslong-motor-dc-6v-150rpm-3mm-shaft-mini-metal-gearwheel-gear-motor-n20-w-encoder-cable'},
+{id:'wheel',cat:'motion',name:'Pololu wheels',short:'2 × 42 × 19',qty:'2',price:'$9.95 USD pair',status:'arrived',sc:'arrived',
+ spec:'42 mm diameter, 19 mm wide, 3 mm D-bore, rubber tire. About 132 mm per turn.',
+ where:'Outboard of the brackets, X 55 to 74 mm, sitting in the plate notches.',
+ does:'Traction and the only thing that touches the floor besides the caster.',
+ why:'Rubber grips smooth floors. The 42 mm diameter sets the ride height numbers and the notch size.',
+ tools:['SolidWorks'],link:'https://www.robotshop.com/products/pololu-1090-wheel'},
+{id:'caster',cat:'motion',name:'Swivel caster',short:'1 × 34.5 mm',qty:'1',price:'$6.90 CAD',status:'arrived',sc:'arrived',
+ spec:'Steel, 360° swivel. 34.5 mm tall, 37 × 33 × 1.4 mm plate, four holes on 28 × 24 mm, Ø28 wheel 12.8 mm wide. M3 × 6 screws included.',
+ where:'Under the rear of the plate on the four pads.',
+ does:'Third support point. It has no motor and no steering, it just follows.',
+ why:'Two wheels and one caster is three contact points, so the rover never rocks on a flat floor. Three points are always stable.',
+ tools:['SolidWorks'],link:'https://ca.robotshop.com/products/acrome-caster-wheel-package'},
+{id:'esp32',cat:'compute',name:'ESP32 DevKit',short:'1 × ESP-WROOM-32',qty:'1',price:'$8.99 CAD',status:'arrived',sc:'arrived',
+ spec:'ESP-WROOM-32, 4 MB flash, 3.3 V logic, WiFi. Runs the web server, both PID loops and the sensor.',
+ where:'Proposed: left strip of the plate, X −50 to −22 mm. Mount not designed yet.',
+ does:'Serves the phone page, counts encoder pulses in interrupts, runs a PID every 50 ms per wheel, and drives the motor driver.',
+ why:'Built-in WiFi means phone control with no extra module. It also has enough interrupt-capable pins and PWM channels. The cost is 3.3 V logic, which is why the sonar echo needs a divider.',
+ tools:['Arduino IDE','Git'],link:'https://universal-solder.ca/esp32-devkit-esp-wroom-32-4mb-cp2101-usb-iot-arduino/'},
+{id:'driver',cat:'compute',name:'TB6612FNG driver',short:'1 × DFRobot',qty:'1',price:'see listing',status:'ordered',sc:'ordered',
+ spec:'Dual H-bridge, about 1.2 A per channel, 20 × 19.5 mm. Pins per motor: IN1, IN2, PWM, plus one shared STBY.',
+ where:'Proposed: left strip, X −46 to −26 mm, Z 8 to 28 mm.',
+ does:'Takes small PWM and direction signals from the ESP32 and switches the real motor current from the 6 V rail.',
+ why:'An ESP32 pin gives milliamps and a motor wants hundreds. The bridge also reverses direction, which a transistor alone cannot.',
+ tools:['Arduino IDE'],link:'https://www.robotshop.com/products/dfrobot-tb6612fng-2x12a-dc-motor-driver-module'},
+{id:'sensor',cat:'compute',name:'HC-SR04 sonar',short:'1 × ultrasonic',qty:'1',price:'$4.24 USD',status:'arrived',sc:'arrived',
+ spec:'About 45 × 20 × 15 mm. Four corner holes, about 42 × 17.5 mm and 2 mm. Transducers 26 mm apart.',
+ where:'On the front face of the sensor wall, facing forward, board upside down.',
+ does:'Sends a 40 kHz ping and times the echo. Distance = time × 343 m/s ÷ 2.',
+ why:'Cheapest way to see a wall in front of the rover. Its echo pin is 5 V, so a 1 kΩ and 2 kΩ divider drops it to 3.3 V before it reaches the ESP32.',
+ tools:['Arduino IDE'],link:'https://www.robotshop.com/products/hc-sr04-ultrasonic-sensor'},
+{id:'battery',cat:'power',name:'18650 holder + cells',short:'2 × 18650',qty:'1 + 2',price:'$2.79 CAD holder',status:'holder ordered, cells to buy',sc:'tobuy',
+ spec:'SparkFun 2 × 18650 holder, 74.5 × 40.8 × 17.7 mm. Pack is 6.0 to 8.4 V. The holder has no switch or protection.',
+ where:'In the 44 × 78 mm pocket in the middle of the plate. Open notch on one end for wires.',
+ does:'Stores the energy. Sits low and central, so the weight is between the wheels.',
+ why:'Protected cells and an inline switch go on the list because a bare holder has neither. The pocket is open at one end so the pack swaps without taking anything apart.',
+ tools:['Multimeter'],link:'https://ca.robotshop.com/products/sparkfun-battery-holder-2x18650-wire-leads'},
+{id:'buck',cat:'power',name:'LM2596 buck converters',short:'2 × step-down',qty:'2',price:'€6.92 ea',status:'one arrived, one to buy',sc:'tobuy',
+ spec:'LM2596S adjustable, 49 × 26 × 12 mm. One set to 6.0 V for the motors. One set to 5.0 V for the ESP32 and sonar.',
+ where:'Proposed: right strip, X 26 to 52 mm, two boards end to end.',
+ does:'Turns the swinging battery voltage into two steady rails.',
+ why:'Modules ship with an arbitrary output. Power each one from the battery with nothing connected, set it with a multimeter, label it, and only then wire it up.',
+ tools:['Multimeter'],link:'https://eu.robotshop.com/products/125-35v-adjustable-step-down-voltage-regulator-lm2596s'},
+{id:'passives',cat:'power',name:'Capacitor and divider',short:'misc',qty:'1 + 2',price:'cents',status:'to buy',sc:'tobuy',
+ spec:'100 to 470 µF capacitor across the motor rail. 1 kΩ and 2 kΩ resistors for the echo divider.',
+ where:'Capacitor next to the driver. Divider between the sonar echo pin and GPIO 18.',
+ does:'The capacitor absorbs motor start-up spikes so they do not reset the ESP32. The divider protects a 3.3 V pin from a 5 V signal.',
+ why:'Cheap parts that prevent the two most annoying failures: random resets and a burned GPIO.',
+ tools:['Multimeter'],link:null},
+{id:'screws',cat:'hw',name:'Screws',short:'M3 and M2',qty:'kit',price:'about $15 CAD',status:'to buy',sc:'tobuy',
+ spec:'M3 × 6 come with the caster. Bracket screws need about M3 × 8. The sensor needs about four M2 × 6.',
+ where:'Brackets and caster screw up from below into the inserts. The sensor screws into the wall holes.',
+ does:'Hold it all together.',
+ why:'Screws go up from the underside into inserts, so the heads stay under the rover and the top face is clean.',
+ tools:['Calipers'],link:null}
+];
+var byId={};P.forEach(function(p){byId[p.id]=p;});
+
+/* ---------------- plan view ---------------- */
+var plan=document.getElementById('plan');
+var S=4.4,PX=372,PY=330;
+function X(x){return PX+x*S;} function Y(z){return PY-z*S;}
+function rect(g,x0,z0,x1,z1,cls,rx){return el('rect',{x:X(x0),y:Y(z1),width:(x1-x0)*S,height:(z1-z0)*S,'class':cls,rx:rx||0},g);}
+function circ(g,cx,cz,r,cls){return el('circle',{cx:X(cx),cy:Y(cz),r:r*S,'class':cls},g);}
+function part(parent,id,extra){var g=el('g',{'class':'part'+(extra?' '+extra:''),'data-part':id,tabindex:'0',role:'button','aria-label':byId[id].name},parent);return g;}
+
+(function buildPlan(){
+  plan.setAttribute('class','mode-xray');
+  // grid
+  var gg=el('g',{},plan);
+  for(var x=-80;x<=80;x+=10){el('line',{x1:X(x),y1:Y(72),x2:X(x),y2:Y(-60),'class':x%50===0?'grid-m':'grid-l'},gg);}
+  for(var z=-60;z<=70;z+=10){el('line',{x1:X(-80),y1:Y(z),x2:X(80),y2:Y(z),'class':z%50===0?'grid-m':'grid-l'},gg);}
+  // under layer
+  var U=el('g',{'class':'underlayer'},plan);
+  [1,-1].forEach(function(s){
+    function xr(a,b){return s>0?[a,b]:[-b,-a];}
+    var w=xr(55,74), b=xr(35,55), m=xr(29,55), sh=xr(55,65);
+    var gw=part(U,'wheel'); rect(gw,w[0],-21,w[1],21,'c-rubber',4); rect(gw,w[0]+3,-21,w[1]-3,21,'c-rubber dash');
+    var gb=part(U,'bracket'); rect(gb,b[0],-14,b[1],14,'c-printed',2);
+    var gm=part(U,'motor'); rect(gm,m[0],-6,m[1],6,'c-steel',1); el('line',{x1:X(sh[0]),y1:Y(0),x2:X(sh[1]),y2:Y(0),stroke:'var(--ink)','stroke-width':3},gm);
+    var gp=part(U,'plate'); circ(gp,s*40,0,3,'c-printed'); circ(gp,s*50,0,3,'c-printed');
+  });
+  var gc=part(U,'caster'); rect(gc,-16.5,-54.5,16.5,-17.5,'c-steel dash'); rect(gc,-6.4,-50,6.4,-22,'c-rubber',6);
+  var gpd=part(U,'pads'); [[-12,-50],[12,-50],[-12,-22],[12,-22]].forEach(function(p){circ(gpd,p[0],p[1],4,'c-printed');});
+  var gi=part(U,'inserts'); [[-12,-50],[12,-50],[-12,-22],[12,-22],[-50,0],[-40,0],[40,0],[50,0]].forEach(function(p){circ(gi,p[0],p[1],2.1,'c-hole');});
+  txt(U,X(64.5),Y(-26),'wheel','t-sm','middle'); txt(U,X(-64.5),Y(-26),'wheel','t-sm','middle');
+  txt(U,X(45),Y(-19),'bracket','t-sm','middle'); txt(U,X(-45),Y(-19),'bracket','t-sm','middle');
+  txt(U,X(0),Y(-58),'caster, pads under here','t-sm','middle');
+  // plate
+  var r=5*S, L=-75,R=75,F=55,B=-55;
+  var d='M '+X(-70)+' '+Y(F)+' L '+X(70)+' '+Y(F)+' A '+r+' '+r+' 0 0 1 '+X(R)+' '+Y(50)+
+   ' L '+X(R)+' '+Y(15)+' L '+X(54.5)+' '+Y(15)+' L '+X(54.5)+' '+Y(-15)+' L '+X(R)+' '+Y(-15)+' L '+X(R)+' '+Y(-50)+
+   ' A '+r+' '+r+' 0 0 1 '+X(70)+' '+Y(B)+' L '+X(-70)+' '+Y(B)+' A '+r+' '+r+' 0 0 1 '+X(L)+' '+Y(-50)+
+   ' L '+X(L)+' '+Y(-15)+' L '+X(-54.5)+' '+Y(-15)+' L '+X(-54.5)+' '+Y(15)+' L '+X(L)+' '+Y(15)+' L '+X(L)+' '+Y(50)+
+   ' A '+r+' '+r+' 0 0 1 '+X(-70)+' '+Y(F)+' Z';
+  var gpl=part(plan,'plate','plateg'); el('path',{d:d,'class':'c-printed plate'},gpl);
+  rect(gpl,-22,-39,22,39,'c-printed dash',6);
+  txt(gpl,X(-40),Y(52),'chassis plate','t-sm','middle');
+  // top layer
+  var T=el('g',{'class':'toplayer'},plan);
+  var gb=part(T,'battery'); rect(gb,-20.4,-37.25,20.4,37.25,'c-power',3); rect(gb,-19,-32.5,-1,32.5,'c-cell',8); rect(gb,1,-32.5,19,32.5,'c-cell',8);
+  txt(gb,X(0),Y(0)+4,'18650 × 2','t-md','middle');
+  var gw=part(T,'wall'); rect(gw,-25,49,25,55,'c-printed',1);
+  var gs=part(T,'sensor'); rect(gs,-22.5,55,22.5,56.6,'c-sense'); rect(gs,-21,56.6,-5,68.6,'c-sense',3); rect(gs,5,56.6,21,68.6,'c-sense',3); txt(gs,X(0),Y(63),'HC-SR04','t-sm','middle');
+  var PB=el('g',{'class':'proposed-g'},T);
+  var ge=part(PB,'esp32'); rect(ge,-50,-54,-22,-3,'c-board proposed',1); txt(ge,X(-36),Y(-28),'ESP32','t-md','middle');
+  var gd=part(PB,'driver'); rect(gd,-46,8,-26,27.5,'c-board proposed',1); txt(gd,X(-36),Y(18),'TB6612','t-sm','middle');
+  var gk=part(PB,'buck'); rect(gk,26,-53,52,-4,'c-power proposed',1); rect(gk,26,6,52,55,'c-power proposed',1); txt(gk,X(39),Y(-28),'LM2596 6 V','t-sm','middle'); txt(gk,X(39),Y(30),'LM2596 5 V','t-sm','middle');
+  // top-surface insert holes (open on top)
+  // dims
+  var dm=el('g',{},plan);
+  el('line',{x1:X(-75),y1:Y(-55)+26,x2:X(75),y2:Y(-55)+26,'class':'dimline'},dm); el('line',{x1:X(-75),y1:Y(-55)+20,x2:X(-75),y2:Y(-55)+32,'class':'dimline'},dm); el('line',{x1:X(75),y1:Y(-55)+20,x2:X(75),y2:Y(-55)+32,'class':'dimline'},dm);
+  txt(dm,X(0),Y(-55)+42,'150 mm','t-md','middle');
+  el('line',{x1:X(-75)-18,y1:Y(55),x2:X(-75)-18,y2:Y(-55),'class':'dimline'},dm); el('line',{x1:X(-75)-24,y1:Y(55),x2:X(-75)-12,y2:Y(55),'class':'dimline'},dm); el('line',{x1:X(-75)-24,y1:Y(-55),x2:X(-75)-12,y2:Y(-55),'class':'dimline'},dm);
+  var tv=txt(dm,X(-75)-26,Y(0),'110 mm','t-md','middle'); tv.setAttribute('transform','rotate(-90 '+(X(-75)-26)+' '+Y(0)+')');
+  var fr=txt(dm,X(60),Y(62),'FRONT','t-md','middle'); fr.setAttribute('font-weight','500');
+  el('path',{d:'M '+X(60)+' '+(Y(55)-14)+' l 0 -26 m -5 8 l 5 -8 l 5 8',stroke:'var(--ink)',fill:'none','stroke-width':1.4,transform:'translate(0,12)'},dm);
+  el('line',{x1:X(55),y1:Y(-55)+52,x2:X(75),y2:Y(-55)+52,stroke:'var(--ink)','stroke-width':2},dm); txt(dm,X(65),Y(-55)+66,'20 mm','t-sm','middle');
+})();
+
+/* ---------------- side view ---------------- */
+var side=document.getElementById('side');
+function SX(z){return 40+(69-z)*5;} function SY(y){return 390-y*5;}
+function srect(g,z0,y0,z1,y1,cls,rx){return el('rect',{x:SX(z1),y:SY(y1),width:(z1-z0)*5,height:(y1-y0)*5,'class':cls,rx:rx||0},g);}
+(function buildSide(){
+  side.setAttribute('class','');
+  var f=el('g',{},side);
+  el('line',{x1:20,y1:SY(0),x2:740,y2:SY(0),stroke:'var(--ink)','stroke-width':1.6},f);
+  for(var i=0;i<36;i++){el('line',{x1:30+i*20,y1:SY(0),x2:22+i*20,y2:SY(0)+9,stroke:'var(--ink2)','stroke-width':1},f);}
+  txt(f,740,SY(0)+26,'floor','t-sm','end');
+  // x-ray bracket group (under)
+  var gb=part(side,'bracket'); srect(gb,-14,9,14,33,'c-printed dash',2); srect(gb,-4,33,4,36,'c-printed',0);
+  var gi=part(side,'inserts'); srect(gi,-1.2,36,1.2,42,'c-hole dash');
+  var gm=part(side,'motor'); srect(gm,-6.15,15.85,6.15,26.15,'c-steel dash',1);
+  // plate
+  var gp=part(side,'plate'); srect(gp,-55,38,55,42,'c-printed',0); srect(gp,-39,40.5,39,42,'c-sense dash',0); srect(gp,-3,36,3,38,'c-printed',0);
+  txt(gp,SX(-30),SY(40)+3,'plate','t-sm','middle');
+  // pads + caster
+  var gpd=part(side,'pads'); srect(gpd,-54,34.5,-46,38,'c-printed'); srect(gpd,-26,34.5,-18,38,'c-printed');
+  var gc=part(side,'caster'); srect(gc,-54.5,33.1,-17.5,34.5,'c-steel');
+  el('path',{d:'M '+SX(-36)+' '+SY(33.1)+' L '+SX(-44)+' '+SY(14)+' M '+SX(-34)+' '+SY(33.1)+' L '+SX(-42)+' '+SY(14),stroke:'var(--ink)','stroke-width':3,fill:'none'},gc);
+  el('circle',{cx:SX(-43),cy:SY(14),r:70,'class':'c-rubber'},gc); el('circle',{cx:SX(-43),cy:SY(14),r:12,'class':'c-steel'},gc);
+  txt(gc,SX(-43),SY(14)+4,'caster','t-sm','middle').setAttribute('style','fill:#fff');
+  // battery
+  var gbat=part(side,'battery'); srect(gbat,-37.25,40.5,37.25,58.2,'c-power',3); txt(gbat,SX(0),SY(50),'18650 holder','t-md','middle');
+  // wall + sensor
+  var gw=part(side,'wall'); srect(gw,49,42,55,68,'c-printed');
+  var gs=part(side,'sensor'); srect(gs,55,44,56.6,64,'c-sense'); srect(gs,56.6,46,68.6,62,'c-sense',3); txt(gs,SX(62),SY(54)+4,'sonar','t-sm','middle').setAttribute('style','fill:#fff');
+  // boards
+  var PB=el('g',{'class':'proposed-g'},side);
+  var ge=part(PB,'esp32'); srect(ge,-54,42,-3,58,'c-board proposed');
+  var gd=part(PB,'driver'); srect(gd,8,42,27.5,52,'c-board proposed');
+  var gk=part(PB,'buck'); srect(gk,-53,42,-4,54,'c-power proposed'); srect(gk,6,42,55,54,'c-power proposed');
+  txt(ge,SX(-28),SY(56),'ESP32 (far side)','t-sm','middle'); txt(gk,SX(-28),SY(47),'LM2596','t-sm','middle'); txt(gd,SX(18),SY(47),'TB6612','t-sm','middle');
+  // wheel
+  var gw2=part(side,'wheel'); el('circle',{cx:SX(0),cy:SY(21),r:105,'class':'c-rubber'},gw2); el('circle',{cx:SX(0),cy:SY(21),r:70,fill:'none',stroke:'var(--ink2)','stroke-width':1,'stroke-dasharray':'3 4'},gw2); el('circle',{cx:SX(0),cy:SY(21),r:16,'class':'c-steel'},gw2); el('circle',{cx:SX(0),cy:SY(21),r:3,fill:'var(--sheet)'},gw2);
+  // dims
+  var dm=el('g',{},side);
+  function vd(zp,y0,y1,label,off){var x=SX(zp);el('line',{x1:x,y1:SY(y0),x2:x,y2:SY(y1),'class':'dimline'},dm);el('line',{x1:x-6,y1:SY(y0),x2:x+6,y2:SY(y0),'class':'dimline'},dm);el('line',{x1:x-6,y1:SY(y1),x2:x+6,y2:SY(y1),'class':'dimline'},dm);txt(dm,x+(off||8),(SY(y0)+SY(y1))/2+4,label,'t-md');}
+  vd(-62,0,38,'38');
+  vd(24,21,38,'17');
+  vd(-14.5,0,9,'9',-26);
+  txt(dm,SX(-36),SY(0)-6,'','t-sm');
+  // callouts
+  txt(dm,SX(62),SY(72),'front','t-md','middle'); txt(dm,SX(-45),SY(72),'rear','t-md','middle');
+  txt(dm,SX(0),SY(-3)+30,'right wheel in its notch, bracket and motor shown as x-ray outlines','t-sm','middle').setAttribute('class','t-sm t-dim');
+  txt(dm,SX(-36),SY(30)-4,'34.5 mm caster + 3.5 pad','t-sm','middle');
+})();
+
+/* ---------------- selection ---------------- */
+var sel=null, panel=document.getElementById('panel'), plist=document.getElementById('plist');
+var sheetEl=document.getElementById('sheet');
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function render(){
+  [plan,side].forEach(function(sv){
+    sv.classList.toggle('has-sel',!!sel);
+    sv.querySelectorAll('.part').forEach(function(g){g.classList.toggle('is-sel',g.getAttribute('data-part')===sel);});
+  });
+  plist.querySelectorAll('button').forEach(function(b){b.setAttribute('aria-pressed',b.getAttribute('data-part')===sel?'true':'false');});
+  var p=byId[sel];
+  if(!p){panel.innerHTML='<h3>Pick a part</h3><p class="muted">Click a part in the drawing or in the list.</p>';return;}
+  var inView=(document.getElementById(currentView).querySelectorAll('[data-part="'+sel+'"]').length>0);
+  var hidden=(sel==='screws'||sel==='passives');
+  var note=hidden?'<p class="muted" style="font-size:13px">No single place to highlight. It is spread across the rover.</p>':(!inView?'<p class="muted" style="font-size:13px">Not visible from this view. Switch views to see it.</p>':'');
+  panel.innerHTML='<span class="cat">'+esc(CATS[p.cat])+' · qty '+esc(p.qty)+'</span><h3>'+esc(p.name)+'</h3>'+
+   '<div><span class="chip s-'+p.sc+'">'+esc(p.status)+'</span></div>'+note+
+   '<dl><div><dt>What it does</dt><dd>'+esc(p.does)+'</dd></div>'+
+   '<div><dt>Where it is</dt><dd>'+esc(p.where)+'</dd></div>'+
+   '<div><dt>Why this one</dt><dd>'+esc(p.why)+'</dd></div>'+
+   '<div><dt>Specs</dt><dd class="mono" style="font-size:12.5px">'+esc(p.spec)+'</dd></div>'+
+   '<div><dt>Made or checked with</dt><dd>'+p.tools.map(esc).join(', ')+'</dd></div></dl>'+
+   (p.link?'<a href="'+p.link+'" target="_blank" rel="noopener">Listing ('+esc(p.price)+')</a>':'');
+}
+var currentView='plan';
+function select(id){sel=id;render();}
+document.addEventListener('click',function(e){var g=e.target.closest('[data-part]');if(g&&(g.classList.contains('part'))){select(g.getAttribute('data-part'));}});
+document.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('part')){e.preventDefault();select(e.target.getAttribute('data-part'));}});
+// list
+var html='';Object.keys(CATS).forEach(function(c){var items=P.filter(function(p){return p.cat===c;});if(!items.length)return;html+='<h4>'+CATS[c]+'</h4>';items.forEach(function(p){html+='<button type="button" data-part="'+p.id+'" aria-pressed="false"><span>'+esc(p.name)+'</span><span>'+esc(p.short)+'</span></button>';});});
+plist.innerHTML=html;
+plist.addEventListener('click',function(e){var b=e.target.closest('button');if(b)select(b.getAttribute('data-part'));});
+// view toggles
+document.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener('click',function(){
+  currentView=b.getAttribute('data-view');
+  document.querySelectorAll('[data-view]').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});
+  plan.toggleAttribute('hidden',currentView!=='plan');side.toggleAttribute('hidden',currentView!=='side');
+  document.getElementById('modeSeg').style.display=currentView==='plan'?'inline-flex':'none';
+  render();});});
+document.querySelectorAll('[data-mode]').forEach(function(b){b.addEventListener('click',function(){
+  var m=b.getAttribute('data-mode');plan.setAttribute('class',(plan.classList.contains('has-sel')?'has-sel ':'')+'mode-'+m);
+  document.querySelectorAll('[data-mode]').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});});});
+document.getElementById('showBoards').addEventListener('change',function(e){[plan,side].forEach(function(sv){sv.classList.toggle('hide-boards',!e.target.checked);});});
+// keep mode class when has-sel toggles
+var _r=render;render=function(){var m=(plan.getAttribute('class')||'').match(/mode-\w+/);var mc=m?m[0]:'mode-xray';_r();plan.classList.add(mc);};
+select('plate');
+
+
+/* ---------------- ride height figures ---------------- */
+(function(){
+  var K=3, FL=290;
+  function build(id,v2){
+    var s=document.getElementById(id);
+    function Xz(z){return 210-z*K;} function Yh(h){return FL-h*K;}
+    function R(x,y,w,h,cls){return el('rect',{x:x,y:y,width:w,height:h,'class':cls},s);}
+    function dim(x,y0,y1,label,side){el('line',{x1:x,y1:y0,x2:x,y2:y1,'class':'dimline'},s);el('line',{x1:x-5,y1:y0,x2:x+5,y2:y0,'class':'dimline'},s);el('line',{x1:x-5,y1:y1,x2:x+5,y2:y1,'class':'dimline'},s);txt(s,x+(side||8),(y0+y1)/2+4,label,'t-md');}
+    var under=v2?38:2, pt=4;
+    var uy=Yh(under), ty=Yh(under+pt);
+    el('line',{x1:15,y1:FL,x2:415,y2:FL,stroke:'var(--ink)','stroke-width':1.6},s);
+    // wheel
+    el('circle',{cx:210,cy:Yh(21),r:21*K,'class':'c-rubber','fill-opacity':.9},s);
+    el('circle',{cx:210,cy:Yh(21),r:3,fill:'var(--sheet)'},s);
+    // plate (with notch in v2)
+    var x0=Xz(55), x1=Xz(-55);
+    if(v2){ var n0=Xz(15), n1=Xz(-15); R(x0,ty,n0-x0,pt*K,'c-printed'); R(n1,ty,x1-n1,pt*K,'c-printed'); }
+    else R(x0,ty,x1-x0,pt*K,'c-printed');
+    if(v2){
+      // boss, tab, block (x-ray)
+      R(210-9,uy,18,2*K,'c-printed'); R(210-12,uy+2*K,24,3*K,'c-printed');
+      el('rect',{x:210-42,y:uy+5*K,width:84,height:24*K,'class':'c-printed dash','fill-opacity':.25},s);
+      // caster
+      var cx=Xz(-36);
+      R(cx-12,uy,24,3.5*K,'c-printed'); R(cx-55*0+(-18.5*K)*0-28,uy+3.5*K,56,1.4*K+1,'c-steel');
+      el('path',{d:'M '+(cx-6)+' '+(uy+3.5*K+4)+' L '+(cx+6)+' '+Yh(14)+' M '+(cx+6)+' '+(uy+3.5*K+4)+' L '+(cx+18)+' '+Yh(14),stroke:'var(--ink)','stroke-width':3,fill:'none'},s);
+      el('circle',{cx:cx+12,cy:Yh(14),r:14*K,'class':'c-steel'},s);
+      dim(402,uy,FL,'38',8);
+      dim(118,Yh(21),uy,'17',-22);
+      txt(s,cx+12,Yh(14)+3,'caster','t-sm','middle').setAttribute('style','fill:#fff');
+      txt(s,cx+8,ty-8,'caster 34.5 + pads 3.5','t-sm','middle');
+    } else {
+      // tab on top, block above (x-ray)
+      R(210-12,ty-3*K,24,3*K,'c-printed');
+      el('rect',{x:210-42,y:ty-3*K-24*K,width:84,height:24*K,'class':'c-printed dash','fill-opacity':.25},s);
+      dim(402,uy,FL,'2',10);
+      dim(292,Yh(21),uy,'19',8);
+    }
+    txt(s,20,330-6,'',"t-sm");
+  }
+  build('rideA',false); build('rideB',true);
+  var a=document.getElementById('rideA'), b=document.getElementById('rideB');
+  txt(a,20,34,'Brackets on top (v1)','t-md').setAttribute('style','font-family:var(--f-disp);font-weight:600;font-size:22px');
+  txt(a,20,54,'axle 19 mm above the plate underside','t-sm').setAttribute('class','t-sm t-dim');
+  txt(a,20,70,'plate sits only 2 mm off the floor','t-sm').setAttribute('class','t-sm t-dim');
+  txt(a,20,322,'A caster would have to be about 2 mm tall.','t-md').setAttribute('style','fill:var(--accent)');
+  txt(b,20,34,'Brackets underneath (v2)','t-md').setAttribute('style','font-family:var(--f-disp);font-weight:600;font-size:22px');
+  txt(b,20,54,'axle 17 mm below plate = 2 boss + 15 tab to axle','t-sm').setAttribute('class','t-sm t-dim');
+  txt(b,20,70,'plate underside = 17 + 21 wheel radius = 38 mm','t-sm').setAttribute('class','t-sm t-dim');
+  txt(b,20,322,'Wheel top pokes 4 mm up into the plate: notch it.','t-md').setAttribute('style','fill:var(--accent)');
+})();
+
+/* ---------------- drive demo ---------------- */
+var TPR=700, CIRC=0.132, TRACK=0.129, DRIVE=300, TURN=200;
+var CMD={forward:[DRIVE,DRIVE],back:[-DRIVE,-DRIVE],left:[-TURN,TURN],right:[TURN,-TURN],stop:[0,0]};
+var cur='stop';
+var dsv=document.getElementById('demoSvg');
+(function(){
+  var g=el('g',{},dsv);
+  for(var x=0;x<=420;x+=30){el('line',{x1:x,y1:0,x2:x,y2:300,'class':'grid-l'},g);}
+  for(var y=0;y<=300;y+=30){el('line',{x1:0,y1:y,x2:420,y2:y,'class':'grid-l'},g);}
+  txt(dsv,10,292,'each square = 10 cm at ×1; the rover is drawn to scale','t-sm').setAttribute('class','t-sm t-dim');
+})();
+var R=el('g',{},dsv);
+var bodyW=0.15, bodyH=0.11, PXM=300; // 1 m = 300 px => 150mm = 45px
+var rv=el('g',{},R);
+el('rect',{x:-bodyW*PXM/2,y:-bodyH*PXM/2,width:bodyW*PXM,height:bodyH*PXM,'class':'c-printed',rx:3},rv);
+el('rect',{x:-6,y:-bodyH*PXM/2-3,width:12,height:3,'class':'c-sense'},rv);
+var wl=el('rect',{x:-9,y:-bodyH*PXM/2-2,width:18,height:6,'class':'c-rubber'},rv); wl.setAttribute('x',-bodyW*PXM/2+14);
+var wr=el('rect',{x:9,y:-bodyH*PXM/2-2,width:18,height:6,'class':'c-rubber'},rv);
+// wheels are at left/right sides (±Y in body frame): body x is forward
+rv.innerHTML='';
+el('rect',{x:-bodyW*PXM/2,y:-bodyH*PXM/2,width:bodyW*PXM,height:bodyH*PXM,'class':'c-printed',rx:3},rv);
+var wLeft=el('rect',{x:-9,y:-bodyH*PXM/2-4,width:18,height:6,'class':'c-rubber'},rv);
+var wRight=el('rect',{x:-9,y:bodyH*PXM/2-2,width:18,height:6,'class':'c-rubber'},rv);
+el('rect',{x:bodyW*PXM/2,y:-6,width:5,height:12,'class':'c-sense'},rv);
+el('path',{d:'M 0 0 L 16 0 M 11 -4 L 16 0 L 11 4',stroke:'var(--accent)','stroke-width':2,fill:'none'},rv);
+var pose={x:0.7,y:0.5,th:0}; var last=0,running=false;
+function setPose(){rv.setAttribute('transform','translate('+(pose.x*PXM)+' '+(pose.y*PXM)+') rotate('+(pose.th*180/Math.PI)+')');}
+function speeds(){var t=CMD[cur];var vl=t[0]/TPR*CIRC, vr=t[1]/TPR*CIRC;return {vl:vl,vr:vr,v:(vl+vr)/2,w:(vr-vl)/TRACK};}
+function fmt(n,d){return n.toFixed(d);}
+function readout(){var s=speeds(),t=CMD[cur];
+  var turn=Math.abs(s.w)>1e-6?fmt(360/(Math.abs(s.w)*180/Math.PI),1)+' s':'n/a';
+  document.getElementById('read').innerHTML=
+   '<div><small>Left target</small><b>'+t[0]+' t/s</b></div><div><small>Right target</small><b>'+t[1]+' t/s</b></div>'+
+   '<div><small>Forward speed</small><b>'+fmt(s.v*100,1)+' cm/s</b></div><div><small>Turn rate</small><b>'+fmt(s.w*180/Math.PI,0)+' °/s</b></div>'+
+   '<div><small>Full spin takes</small><b>'+turn+'</b></div><div><small>Share of top speed</small><b>'+fmt(Math.abs(DRIVE)/(150/60*TPR)*100,0)+'%</b></div>';}
+function tick(ts){var dt=(ts-last)/1000;last=ts;if(dt>0.1)dt=0.016;var k=+document.getElementById('spd').value;var s=speeds();
+  pose.th+= s.w*dt*k; pose.x+= s.v*Math.cos(pose.th)*dt*k; pose.y+= s.v*Math.sin(pose.th)*dt*k;
+  var W=420/PXM,H=300/PXM; if(pose.x>W-0.05)pose.x=0.05; if(pose.x<0.05)pose.x=W-0.05; if(pose.y>H-0.05)pose.y=0.05; if(pose.y<0.05)pose.y=H-0.05;
+  setPose(); if(cur!=='stop')requestAnimationFrame(tick);else running=false;}
+function go(c){cur=c;document.querySelectorAll('#driveBtns button').forEach(function(b){b.setAttribute('aria-pressed',b.getAttribute('data-cmd')===c?'true':'false');});readout();
+  if(c!=='stop'&&!running&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){running=true;last=performance.now();requestAnimationFrame(tick);}}
+document.getElementById('driveBtns').addEventListener('click',function(e){var b=e.target.closest('button');if(b)go(b.getAttribute('data-cmd'));});
+document.getElementById('spd').addEventListener('input',function(e){document.getElementById('spdv').textContent='×'+e.target.value;});
+setPose();readout();
+
+/* ---------------- control loop diagram ---------------- */
+(function(){
+  var s=document.getElementById('loopSvg');
+  el('defs',{},s).innerHTML='<marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>';
+  function box(x,y,w,h,l1,l2,cls){el('rect',{x:x,y:y,width:w,height:h,'class':cls||'c-hole',rx:2},s);var dk=(cls==='c-rubber');var a=txt(s,x+w/2,y+(l2?h/2-3:h/2+4),l1,'t-md','middle');if(dk)a.setAttribute('style','fill:#fff');if(l2){var b=txt(s,x+w/2,y+h/2+12,l2,dk?'t-sm':'t-sm t-dim','middle');if(dk)b.setAttribute('style','fill:#ddd');}}
+  function arr(d,col){el('path',{d:d,fill:'none',stroke:col||'var(--ink)','stroke-width':1.6,'marker-end':'url(#ah)'},s);}
+  box(20,20,150,48,'Phone browser','tap a button','c-sense');
+  box(20,110,150,56,'ESP32 web server','/forward  /left  /stop','c-board');
+  box(20,208,150,48,'setTargets(L, R)','ticks per second','c-board');
+  box(230,208,130,48,'PID per wheel','every 50 ms','c-board');
+  box(230,110,130,56,'error','target − measured','c-hole');
+  box(400,208,100,48,'PWM','−255 to 255','c-board');
+  box(400,300,100,48,'TB6612','H-bridge','c-board');
+  box(400,390,100,48,'N20 motor','6 V','c-steel');
+  box(230,390,130,48,'Encoder A/B','rising edge ISR','c-sense');
+  box(230,300,130,48,'ticks ÷ 0.05 s','= measured speed','c-board');
+  box(20,390,150,48,'Wheel + floor','real world','c-rubber');
+  txt(s,100,468,'','t-sm');
+  arr('M95 68 L95 108');txt(s,102,92,'WiFi, HTTP GET','t-sm');
+  arr('M95 166 L95 206');
+  arr('M170 232 L228 232'); txt(s,176,224,'target','t-sm');
+  arr('M295 208 L295 168'); txt(s,302,192,'set point','t-sm');
+  arr('M360 138 C 390 138 380 200 398 224');
+  arr('M450 256 L450 298');
+  arr('M450 348 L450 388');
+  arr('M400 414 L362 414'); txt(s,366,380,'shaft','t-sm');
+  arr('M295 390 L295 350');
+  arr('M295 300 C 295 270 295 250 295 168','var(--accent)');
+  txt(s,306,296,'feedback','t-sm').setAttribute('style','fill:var(--accent)');
+  arr('M230 414 L172 414');
+  // sonar branch
+  box(20,300,150,56,'HC-SR04 echo','readDistance()  (planned)','c-sense');
+  el('path',{d:'M95 300 L95 258',fill:'none',stroke:'var(--ink)','stroke-width':1.6,'stroke-dasharray':'4 3','marker-end':'url(#ah)'},s);
+  txt(s,102,284,'too close: targets = 0','t-sm');
+  txt(s,20,498,'Orange line closes the loop. Dashed line is the obstacle stop, not written yet.','t-sm').setAttribute('class','t-sm t-dim');
+})();
+
+/* ---------------- wiring diagram ---------------- */
+(function(){
+  var s=document.getElementById('wireSvg');
+  el('defs',{},s).innerHTML='<marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>';
+  function box(x,y,w,h,l1,l2,cls){el('rect',{x:x,y:y,width:w,height:h,'class':cls,rx:2},s);txt(s,x+w/2,y+(l2?h/2-2:h/2+4),l1,'t-md','middle');if(l2)txt(s,x+w/2,y+h/2+13,l2,'t-sm t-dim','middle');}
+  function pw(d,dash){el('path',{d:d,fill:'none',stroke:'var(--accent)','stroke-width':3.2,'marker-end':'url(#ah2)','stroke-dasharray':dash||''},s);}
+  function sg(d,dash){el('path',{d:d,fill:'none',stroke:'var(--ink)','stroke-width':1.4,'marker-end':'url(#ah2)','stroke-dasharray':dash||''},s);}
+  function lab(x,y,t,acc,anchor){var e=txt(s,x,y,t,'t-sm',anchor);if(acc)e.setAttribute('style','fill:var(--accent)');return e;}
+  // groups
+  el('rect',{x:752,y:44,width:228,height:204,fill:'none',stroke:'var(--ink2)','stroke-dasharray':'5 4'},s);
+  lab(762,62,'N20 motors with encoders',false);
+  box(20,250,130,64,'2 × 18650','6.0 to 8.4 V','c-power');
+  box(185,265,70,34,'Switch','inline','c-hole');
+  box(310,110,130,64,'LM2596','set to 6.0 V','c-power');
+  box(310,360,130,64,'LM2596','set to 5.0 V','c-power');
+  box(310,205,130,44,'100 to 470 µF','across the 6 V rail','c-hole');
+  box(520,110,160,64,'TB6612FNG','VM 6 V · VCC 3.3 V','c-board');
+  box(520,330,160,120,'ESP32 DevKit','VIN 5 V · 3V3 out','c-board');
+  box(790,76,170,50,'Left N20','','c-steel');
+  box(790,160,170,50,'Right N20','','c-steel');
+  box(790,420,170,64,'HC-SR04','VCC 5 V · Echo 5 V','c-sense');
+  box(540,490,140,46,'1 kΩ + 2 kΩ','echo divider','c-hole');
+  // power
+  pw('M150 282 L183 282'); pw('M255 282 L275 282 L275 142 L308 142'); pw('M275 282 L275 392 L308 392');
+  lab(312,102,'6.0 V motor rail',true); lab(312,352,'5.0 V logic rail',true);
+  pw('M440 142 L518 142'); pw('M440 392 L518 392');
+  el('path',{d:'M375 174 L375 203',fill:'none',stroke:'var(--accent)','stroke-width':2.2,'stroke-dasharray':'4 3'},s);
+  pw('M680 130 L720 130 L720 101 L788 101'); pw('M720 130 L720 185 L788 185'); lab(692,122,'motor power',true);
+  pw('M480 392 L480 566 L875 566 L875 486'); lab(492,556,'5 V to sonar',true);
+  // signals
+  sg('M550 330 L550 176'); lab(556,262,'GPIO 26 25 14',false); lab(556,276,'33 32 13 · 27',false);
+  sg('M650 330 L650 176','4 3'); lab(656,262,'3.3 V logic',false);
+  sg('M876 212 L876 370 L682 370'); lab(700,362,'enc L 34 35 · enc R 36 39',false);
+  sg('M682 435 L788 435'); lab(692,427,'Trig GPIO 5',false);
+  sg('M788 470 L730 470 L730 513 L682 513'); lab(740,490,'Echo 5 V',false);
+  sg('M610 490 L610 452'); lab(618,478,'GPIO 18',false);
+  // ground
+  el('line',{x1:20,y1:592,x2:980,y2:592,stroke:'var(--ink)','stroke-width':2},s);
+  lab(20,612,'common ground to every board, every module, every negative lead',false).setAttribute('class','t-sm t-dim');
+})();
+
+/* ---------------- tools ---------------- */
+var TOOLS=[
+ {n:'SolidWorks',f:'Mechanical design',d:'Chassis, motor bracket, caster pads and the sensor wall are parts. Rover_Assembly mates them and runs the interference check that found the wheel hitting the plate. Parts live in cad/ with STEP files beside them.',p:['plate','bracket','pads','wall','wheel','caster']},
+ {n:'Bambu Studio',f:'Slicing and printing',d:'Turns the STL or 3MF into toolpaths for the A1 Mini. Orientation and supports for the next chassis are decided here: the pads, the tall wall and the heat-set holes all depend on it.',p:['plate','bracket','pads','wall']},
+ {n:'Arduino IDE',f:'Firmware, C and C++',d:'rover.ino plus five bench sketches, one per subsystem. Reads encoder interrupts, runs the PID every 50 ms, serves the phone page, times the sonar echo. Needs a USB data cable before any of it can run.',p:['esp32','driver','sensor','motor']},
+ {n:'MATLAB + Simulink',f:'Control design',d:'sim/rover_speed_loop.slx models the wheel speed loop on guessed motor numbers. The next step is fitting it to a real step test, then taking Kp and Ki from the model instead of from guesses. Learning goal: in progress, paused after Stage 2.',p:['motor','esp32']},
+ {n:'Git + GitHub',f:'Documentation and history',d:'The repo carries requirements.md, decisions.md (D-001 to D-014) and wiring.md. Every design change since the first print is written down with its reason, which is also what makes this a portfolio project.',p:['plate']},
+ {n:'Multimeter + calipers',f:'Measurement',d:'Set both bucks to 6.0 and 5.0 V before anything is wired. Measure motor can depth, the caster, insert fit and the encoder count per wheel turn. Most open items on sheet 7 close here.',p:['buck','motor','inserts','battery']},
+ {n:'Soldering iron',f:'Inserts and wiring',d:'Heat-set inserts go in with the iron tip on the insert, pressed slowly flush. The same iron solders the motor leads, the switch and the divider.',p:['inserts','battery','passives']},
+ {n:'FEA, ROS 2',f:'Learning goals, not V1 needs',d:'FEA: the useful question is how much the plate corners beside the wheel notches flex, or the sensor wall under a bump. A hand beam calc answers it first and FEA checks it. ROS 2: out of scope for V1. The encoders and differential-drive maths are what a later V2 would publish as odometry.',p:['plate','wall','motor']}
+];
+var tl=document.getElementById('tools');
+tl.innerHTML=TOOLS.map(function(t){return '<div class="tool"><span class="for">'+esc(t.f)+'</span><h3>'+esc(t.n)+'</h3><p>'+esc(t.d)+'</p><div>'+t.p.map(function(id){return '<button type="button" class="pill" data-jump="'+id+'">'+esc(byId[id].name)+'</button>';}).join('')+'</div></div>';}).join('');
+tl.addEventListener('click',function(e){var b=e.target.closest('[data-jump]');if(!b)return;select(b.getAttribute('data-jump'));document.getElementById('explore').scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});});
+
+/* ---------------- BOM table ---------------- */
+var rows='<thead><tr><th>Part</th><th>Qty</th><th>Price</th><th>Status</th><th>Where it goes</th><th>Source</th></tr></thead><tbody>';
+P.forEach(function(p){rows+='<tr><td><b>'+esc(p.name)+'</b><br><span class="muted" style="font-size:13px">'+esc(p.short)+'</span></td><td class="n">'+esc(p.qty)+'</td><td class="n">'+esc(p.price)+'</td><td><span class="chip s-'+p.sc+'">'+esc(p.status)+'</span></td><td>'+esc(p.where)+'</td><td>'+(p.link?'<a href="'+p.link+'" target="_blank" rel="noopener">listing</a>':'<span class="muted">printed or in hand</span>')+'</td></tr>';});
+rows+='<tr><td><b>Tools</b><br><span class="muted" style="font-size:13px">calipers, soldering iron, multimeter</span></td><td class="n">3</td><td class="n">about $10 to 30 CAD ea</td><td><span class="chip s-tobuy">calipers bought, rest to buy</span></td><td>Bench, not on the rover.</td><td><a href="https://www.universal-solder.ca/product/digital-caliper-150mm-carbon-fiber-reinforced/" target="_blank" rel="noopener">calipers</a></td></tr></tbody>';
+document.getElementById('bom').innerHTML=rows;
+})();
+</script>
+
+</body>
+</html>

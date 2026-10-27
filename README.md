@@ -23,6 +23,7 @@ The chassis gets reprinted before anything is mounted on it: sensor wall, ride h
     docs/wiring.md             power layout and pin map
     docs/wiring.png            same thing as a block diagram
     docs/rover_explainer.html  click-through explanation of the firmware, opens in a browser
+    docs/rover_overview.html   the finished rover drawn to scale, every part, its job and why, opens in a browser
 
 You need SolidWorks for the .SLDPRT files and MATLAB with Simulink for the .slx. The rest opens anywhere.
 
@@ -42,6 +43,6 @@ The PID gains in rover.ino (2.0 / 0.5 / 0.1) are placeholders and the sim says t
 
 Firmware gaps: readDistance() is an empty stub, so no obstacle stop. Nothing zeroes the targets if the phone drops. The integral has no anti-windup, and the first PID call after boot sees a huge dt.
 
-Mechanical gaps: with the brackets on top the plate would sit about 5 mm off the floor, and the caster is 34.5 mm tall. The brackets have to go under the plate (D-014), which leaves the plate 38 mm off the floor against a 34.5 mm caster, so it needs a 3.5 mm spacer. All on paper, not yet checked in an assembly. The caster has four holes and the plate has two slots. The bracket pocket is 15.3 mm deep and I haven't measured how much of the 26 mm motor goes into it. The sensor wall has the wrong hole pattern and the ESP32 and driver mounts don't exist.
+Mechanical gaps: the v2 chassis is in CAD and unprinted. Brackets hang under the plate (D-014) so the axle is 17 mm below it and the plate sits 38 mm off the floor, which the assembly confirms. Wheel notches and four caster pads (3.5 mm, the spacer) are modelled. The sensor wall is still being redone for the four-hole board. The ESP32, driver and buck mounts don't exist. The bracket pocket is 15.3 mm deep and I haven't measured how much of the 26 mm motor goes into it.
 
 The battery holder is a bare one with no switch or protection, so protected cells and an inline switch are on the list.
