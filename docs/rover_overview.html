@@ -110,6 +110,10 @@ svg text{font-family:var(--f-mono);fill:var(--ink)}
 .plist button[aria-pressed="true"]{border-left-color:var(--accent);background:var(--accent-soft);font-weight:600}
 .plist button span:last-child{color:var(--ink2);font:400 12px var(--f-mono);white-space:nowrap}
 
+.glhost{position:relative;height:clamp(380px,64vh,640px);background:var(--sheet);overflow:hidden}
+.glhost canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+.gltip{position:absolute;pointer-events:none;background:var(--ink);color:var(--sheet);font:12px var(--f-mono);padding:3px 8px;white-space:nowrap}
+.glbar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:10px 4px 2px}
 /* generic blocks */
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
 .fig{background:var(--sheet);border:1px solid var(--ink);padding:10px;min-width:0}
@@ -167,7 +171,7 @@ td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
   <div class="sec-head">
     <span class="tag">Sheet 1 · The whole rover</span>
     <h2>Click any part to see where it lives and why it is there</h2>
-    <p class="muted">The drawing is to scale from the CAD (1 mm = 4.4 px in plan). Solid parts exist in the model or on your desk. Dashed boards are proposed positions, because the ESP32 and driver mounts are the one thing not designed yet.</p>
+    <p class="muted">Plan, side and a full 3D model, all to scale from the CAD. In 3D, drag to orbit, scroll to zoom and use Explode to pull the assembly apart. Solid parts exist in the model or on your desk. Dashed boards are proposed positions, because the ESP32 and driver mounts are the one thing not designed yet.</p>
   </div>
   <div class="explorer" id="explorer">
     <div class="sheet" id="sheet">
@@ -175,6 +179,7 @@ td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
         <div class="seg" role="group" aria-label="View">
           <button type="button" data-view="plan" aria-pressed="true">Plan</button>
           <button type="button" data-view="side" aria-pressed="false">Side</button>
+          <button type="button" data-view="three" aria-pressed="false">3D</button>
         </div>
         <div class="seg" role="group" aria-label="Layer" id="modeSeg">
           <button type="button" data-mode="surface" aria-pressed="false">From above</button>
@@ -184,7 +189,18 @@ td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
         <label class="chk"><input type="checkbox" id="showBoards" checked> Proposed boards</label>
       </div>
       <div class="draw"><svg id="plan" viewBox="0 0 732 650" role="img" aria-label="Plan view of the rover chassis with every part drawn to scale"></svg>
-      <svg id="side" viewBox="0 0 760 450" role="img" aria-label="Side view of the rover showing the plate 38 millimetres above the floor, wheel, caster and sensor wall" hidden></svg></div>
+      <svg id="side" viewBox="0 0 760 450" role="img" aria-label="Side view of the rover showing the plate 38 millimetres above the floor, wheel, caster and sensor wall" hidden></svg>
+      <div id="three" hidden>
+        <div class="glhost" id="glHost"><canvas id="gl" tabindex="0" aria-label="3D model of the rover. Drag to orbit, scroll to zoom, click a part to select it. Arrow keys also orbit."></canvas><div class="gltip" id="glTip" hidden></div></div>
+        <div class="glbar">
+          <div class="seg" role="group" aria-label="Camera">
+            <button type="button" data-cam="iso">Iso</button><button type="button" data-cam="top">Top</button><button type="button" data-cam="front">Front</button><button type="button" data-cam="side">Side</button><button type="button" data-cam="under">Underside</button>
+          </div>
+          <label class="chk">Explode <input type="range" id="explode" min="0" max="100" value="0" aria-label="Explode the assembly"></label>
+          <label class="chk"><input type="checkbox" id="spin"> Spin</label>
+          <span class="muted" style="font-size:12.5px">Drag to orbit · scroll to zoom · right-drag to pan · click a part</span>
+        </div>
+      </div></div>
       <div class="legend">
         <span><i style="background:var(--printed)"></i>Printed PLA</span>
         <span><i style="background:var(--rubber)"></i>Wheels</span>
@@ -522,7 +538,7 @@ function render(){
   plist.querySelectorAll('button').forEach(function(b){b.setAttribute('aria-pressed',b.getAttribute('data-part')===sel?'true':'false');});
   var p=byId[sel];
   if(!p){panel.innerHTML='<h3>Pick a part</h3><p class="muted">Click a part in the drawing or in the list.</p>';return;}
-  var inView=(document.getElementById(currentView).querySelectorAll('[data-part="'+sel+'"]').length>0);
+  var inView=currentView==='three'?true:(document.getElementById(currentView).querySelectorAll('[data-part="'+sel+'"]').length>0);
   var hidden=(sel==='screws'||sel==='passives');
   var note=hidden?'<p class="muted" style="font-size:13px">No single place to highlight. It is spread across the rover.</p>':(!inView?'<p class="muted" style="font-size:13px">Not visible from this view. Switch views to see it.</p>':'');
   panel.innerHTML='<span class="cat">'+esc(CATS[p.cat])+' · qty '+esc(p.qty)+'</span><h3>'+esc(p.name)+'</h3>'+
@@ -547,14 +563,17 @@ document.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener(
   currentView=b.getAttribute('data-view');
   document.querySelectorAll('[data-view]').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});
   plan.toggleAttribute('hidden',currentView!=='plan');side.toggleAttribute('hidden',currentView!=='side');
-  document.getElementById('modeSeg').style.display=currentView==='plan'?'inline-flex':'none';
+  document.getElementById('three').toggleAttribute('hidden',currentView!=='three');
+  document.getElementById('modeSeg').style.display=currentView==='side'?'none':'inline-flex';
+  if(window.rover3d)window.rover3d.show(currentView==='three');
   render();});});
 document.querySelectorAll('[data-mode]').forEach(function(b){b.addEventListener('click',function(){
   var m=b.getAttribute('data-mode');plan.setAttribute('class',(plan.classList.contains('has-sel')?'has-sel ':'')+'mode-'+m);
-  document.querySelectorAll('[data-mode]').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});});});
-document.getElementById('showBoards').addEventListener('change',function(e){[plan,side].forEach(function(sv){sv.classList.toggle('hide-boards',!e.target.checked);});});
+  document.querySelectorAll('[data-mode]').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});if(window.rover3d)window.rover3d.setMode(m);});});
+document.getElementById('showBoards').addEventListener('change',function(e){[plan,side].forEach(function(sv){sv.classList.toggle('hide-boards',!e.target.checked);});if(window.rover3d)window.rover3d.setBoards(e.target.checked);});
 // keep mode class when has-sel toggles
-var _r=render;render=function(){var m=(plan.getAttribute('class')||'').match(/mode-\w+/);var mc=m?m[0]:'mode-xray';_r();plan.classList.add(mc);};
+var _r=render;render=function(){var m=(plan.getAttribute('class')||'').match(/mode-\w+/);var mc=m?m[0]:'mode-xray';_r();plan.classList.add(mc);if(window.rover3d)window.rover3d.refresh();};
+window.__rover={select:select,byId:byId,getSel:function(){return sel;}};
 select('plate');
 
 
@@ -754,6 +773,373 @@ P.forEach(function(p){rows+='<tr><td><b>'+esc(p.name)+'</b><br><span class="mute
 rows+='<tr><td><b>Tools</b><br><span class="muted" style="font-size:13px">calipers, soldering iron, multimeter</span></td><td class="n">3</td><td class="n">about $10 to 30 CAD ea</td><td><span class="chip s-tobuy">calipers bought, rest to buy</span></td><td>Bench, not on the rover.</td><td><a href="https://www.universal-solder.ca/product/digital-caliper-150mm-carbon-fiber-reinforced/" target="_blank" rel="noopener">calipers</a></td></tr></tbody>';
 document.getElementById('bom').innerHTML=rows;
 })();
+</script>
+<script>
+/* ---------------- 3D view: small WebGL renderer, no libraries ---------------- */
+(function(){
+'use strict';
+var host=document.getElementById('glHost'), cv=document.getElementById('gl'), tip=document.getElementById('glTip');
+if(!host||!cv)return;
+var R=window.__rover||{};
+var gl=null, inited=false, visible=false, dirty=true, failed=false, looping=false;
+var mode='xray', boards=true, expl=0, explTarget=0, spin=false;
+var objs=[], gridBuf=null, gridN=0;
+var cam={yaw:0.62,pitch:0.5,dist:300,tx:0,ty:28,tz:0};
+var bg=[0.97,0.98,0.98], gridCol=[0.75,0.8,0.84], inkCol=[0.08,0.12,0.16], accent=[0.78,0.27,0.04];
+
+/* ---- math ---- */
+function mul(a,b){var o=new Float32Array(16);for(var c=0;c<4;c++)for(var r=0;r<4;r++){var s=0;for(var k=0;k<4;k++)s+=a[k*4+r]*b[c*4+k];o[c*4+r]=s;}return o;}
+function persp(f,a,n,fa){var t=1/Math.tan(f/2),o=new Float32Array(16);o[0]=t/a;o[5]=t;o[10]=(fa+n)/(n-fa);o[11]=-1;o[14]=2*fa*n/(n-fa);return o;}
+function lookAt(e,c,u){
+  var zx=e[0]-c[0],zy=e[1]-c[1],zz=e[2]-c[2],l=Math.hypot(zx,zy,zz);zx/=l;zy/=l;zz/=l;
+  var xx=u[1]*zz-u[2]*zy,xy=u[2]*zx-u[0]*zz,xz=u[0]*zy-u[1]*zx;l=Math.hypot(xx,xy,xz);xx/=l;xy/=l;xz/=l;
+  var yx=zy*xz-zz*xy,yy=zz*xx-zx*xz,yz=zx*xy-zy*xx;
+  return new Float32Array([xx,yx,zx,0, xy,yy,zy,0, xz,yz,zz,0, -(xx*e[0]+xy*e[1]+xz*e[2]), -(yx*e[0]+yy*e[1]+yz*e[2]), -(zx*e[0]+zy*e[1]+zz*e[2]), 1]);
+}
+function hex(h){return [(h>>16&255)/255,(h>>8&255)/255,(h&255)/255];}
+
+/* ---- geometry builder ---- */
+function B(){this.p=[];this.n=[];this.e=[];}
+B.prototype.triN=function(a,b,c,na,nb,nc){this.p.push(a[0],a[1],a[2],b[0],b[1],b[2],c[0],c[1],c[2]);this.n.push(na[0],na[1],na[2],nb[0],nb[1],nb[2],nc[0],nc[1],nc[2]);};
+B.prototype.tri=function(a,b,c){
+  var ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];
+  var nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx,l=Math.hypot(nx,ny,nz)||1;var n=[nx/l,ny/l,nz/l];
+  this.triN(a,b,c,n,n,n);
+};
+B.prototype.quad=function(a,b,c,d){this.tri(a,b,c);this.tri(a,c,d);};
+B.prototype.box=function(x0,x1,y0,y1,z0,z1,edges){
+  var v=[[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]];
+  var f=[[0,1,2,3],[5,4,7,6],[4,0,3,7],[1,5,6,2],[3,2,6,7],[4,5,1,0]];
+  for(var i=0;i<6;i++)this.quad(v[f[i][0]],v[f[i][1]],v[f[i][2]],v[f[i][3]]);
+  if(edges){var E=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];for(var j=0;j<12;j++){var a=v[E[j][0]],b=v[E[j][1]];this.e.push(a[0],a[1],a[2],b[0],b[1],b[2]);}}
+  return this;
+};
+B.prototype.cyl=function(axis,c,len,r,seg,caps){
+  seg=seg||28;var h=len/2;
+  function P(t,s){var ca=Math.cos(t),sa=Math.sin(t);
+    if(axis==='x')return [c[0]+s,c[1]+r*ca,c[2]+r*sa];
+    if(axis==='y')return [c[0]+r*ca,c[1]+s,c[2]+r*sa];
+    return [c[0]+r*ca,c[1]+r*sa,c[2]+s];}
+  function N(t){var ca=Math.cos(t),sa=Math.sin(t);
+    if(axis==='x')return [0,ca,sa]; if(axis==='y')return [ca,0,sa]; return [ca,sa,0];}
+  function C(s){return axis==='x'?[c[0]+s,c[1],c[2]]:axis==='y'?[c[0],c[1]+s,c[2]]:[c[0],c[1],c[2]+s];}
+  for(var i=0;i<seg;i++){
+    var t0=i/seg*Math.PI*2,t1=(i+1)/seg*Math.PI*2;
+    var a=P(t0,-h),b=P(t1,-h),cc=P(t1,h),d=P(t0,h);
+    this.triN(a,b,cc,N(t0),N(t1),N(t1));this.triN(a,cc,d,N(t0),N(t1),N(t0));
+    if(caps!==false){this.tri(C(-h),a,b);this.tri(C(h),cc,d);}
+  }
+  return this;
+};
+B.prototype.sector=function(cx,cz,r,t0,t1,y0,y1,seg){
+  seg=seg||8;
+  for(var i=0;i<seg;i++){
+    var a0=t0+(t1-t0)*i/seg,a1=t0+(t1-t0)*(i+1)/seg;
+    var p0=[cx+r*Math.cos(a0),0,cz+r*Math.sin(a0)],p1=[cx+r*Math.cos(a1),0,cz+r*Math.sin(a1)];
+    this.tri([cx,y1,cz],[p0[0],y1,p0[2]],[p1[0],y1,p1[2]]);
+    this.tri([cx,y0,cz],[p1[0],y0,p1[2]],[p0[0],y0,p0[2]]);
+    this.quad([p0[0],y0,p0[2]],[p1[0],y0,p1[2]],[p1[0],y1,p1[2]],[p0[0],y1,p0[2]]);
+  }
+  return this;
+};
+
+/* ---- scene ---- */
+var TOP={battery:1,wall:1,sensor:1,esp32:1,driver:1,buck:1};
+function add(part,b,col,alpha,o){
+  o=o||{};
+  var p=new Float32Array(b.p),mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];
+  for(var i=0;i<p.length;i+=3){for(var k=0;k<3;k++){if(p[i+k]<mn[k])mn[k]=p[i+k];if(p[i+k]>mx[k])mx[k]=p[i+k];}}
+  var c=[(mn[0]+mx[0])/2,(mn[1]+mx[1])/2,(mn[2]+mx[2])/2];
+  var ob={part:part,col:hex(col),a:alpha===undefined?1:alpha,p:p,n:new Float32Array(b.n),nt:p.length/3,e:b.e.length?new Float32Array(b.e):null,ne:b.e.length/3,
+    prop:!!o.prop,dir:o.dir||[0,0,0],c:c,rad:Math.hypot(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2])/2,eff:1,emis:0};
+  objs.push(ob);return ob;
+}
+function buildScene(){
+  var PLA=0x9db7c5,PLA2=0x7ba3b4,DARK=0x1d2328,STEEL=0xaab4bb,BRASS=0xc9a24a,RUB=0x23292e,PCBB=0x1f5fa8;
+  var s,i;
+  // plate: two layers, pocket cut in the upper one
+  function wings(b,y0,y1){
+    [1,-1].forEach(function(sg){
+      var xa=sg>0?54.5:-75,xb=sg>0?75:-54.5,xi=sg>0?54.5:-70,xo=sg>0?70:-54.5;
+      [1,-1].forEach(function(sz){
+        var za=sz>0?15:-50,zb=sz>0?50:-15,zc=sz>0?50:-55,zd=sz>0?55:-50;
+        b.box(xa,xb,y0,y1,za,zb);
+        b.box(xi,xo,y0,y1,zc,zd);
+        var t0,t1;
+        if(sg>0&&sz>0){t0=0;t1=Math.PI/2;}else if(sg<0&&sz>0){t0=Math.PI/2;t1=Math.PI;}else if(sg<0&&sz<0){t0=Math.PI;t1=Math.PI*1.5;}else{t0=-Math.PI/2;t1=0;}
+        b.sector(sg*70,sz*50,5,t0,t1,y0,y1);
+      });
+    });
+  }
+  var lo=new B();lo.box(-54.5,54.5,38,40.5,-55,55);wings(lo,38,40.5);add('plate',lo,PLA,1);
+  var up=new B();[[-54.5,-22,-55,55],[22,54.5,-55,55],[-22,22,39,55],[-22,22,-55,-39]].forEach(function(r){up.box(r[0],r[1],40.5,42,r[2],r[3]);});wings(up,40.5,42);add('plate',up,PLA,1);
+  // hole decals on the plate
+  var dec=new B();
+  [[-50,0],[-40,0],[40,0],[50,0],[-12,-50],[12,-50]].forEach(function(h){dec.cyl('y',[h[0],42.03,h[1]],0.05,2.1,18);});
+  [[-12,-22],[12,-22]].forEach(function(h){dec.cyl('y',[h[0],40.53,h[1]],0.05,2.1,18);});
+  add('plate',dec,DARK,1);
+  // bosses under the motor holes
+  var bo=new B();[-50,-40,40,50].forEach(function(x){bo.cyl('y',[x,37.0,0],2.02,3,22);});add('plate',bo,PLA,1);
+  // caster pads
+  var pd=new B();[[-12,-50],[12,-50],[-12,-22],[12,-22]].forEach(function(h){pd.cyl('y',[h[0],36.26,h[1]],3.52,4,26);});add('pads',pd,PLA2,1,{dir:[0,-30,0]});
+  // heat-set inserts (full length, hidden inside until x-ray or explode)
+  var ib=new B(),ibd=new B();
+  [-50,-40,40,50].forEach(function(x){ib.cyl('y',[x,37.99,0],4.02,2.1,16);ibd.cyl('y',[x,35.95,0],0.05,1.4,12);});
+  [[-12,-50],[12,-50],[-12,-22],[12,-22]].forEach(function(h){ib.cyl('y',[h[0],36.5,h[1]],4.02,2.1,16);ibd.cyl('y',[h[0],34.45,h[1]],0.05,1.4,12);});
+  add('inserts',ib,BRASS,1,{dir:[0,-18,0]});add('inserts',ibd,DARK,1,{dir:[0,-18,0]});
+  // motor brackets, motors, wheels, both sides
+  [1,-1].forEach(function(sg){
+    function X(a,b){return sg>0?[a,b]:[-b,-a];}
+    var bl=new B(),r;
+    r=X(35,55);bl.box(r[0],r[1],9,33,-14,14,true);
+    r=X(37,43);bl.box(r[0],r[1],33,36,-4,4,true);r=X(47,53);bl.box(r[0],r[1],33,36,-4,4,true);
+    add('bracket',bl,PLA2,1,{dir:[0,-35,0]});
+    var pk=new B();pk.box(sg>0?34.97:-35.03,sg>0?35.03:-34.97,15.85,26.15,-6.15,6.15);add('bracket',pk,DARK,1,{dir:[0,-35,0]});
+    var m=new B();
+    r=X(31,46);m.box(r[0],r[1],16,26,-6,6);
+    var mg=new B();r=X(46,55);mg.box(r[0],r[1],16,26,-6,6);
+    var me=new B();r=X(29,31);me.box(r[0],r[1],14,28,-7,7);
+    var msh=new B();r=X(55,65);msh.cyl('x',[(r[0]+r[1])/2,21,0],10,1.5,14);
+    var md=[sg*22,-35,0];
+    add('motor',m,STEEL,1,{dir:md});add('motor',mg,BRASS,1,{dir:md});add('motor',me,0x1f6b44,1,{dir:md});add('motor',msh,0xd5dadd,1,{dir:md});
+    var w=new B();w.cyl('x',[sg*64.5,21,0],19,21,48);add('wheel',w,RUB,1,{dir:[sg*50,0,0]});
+    var wh=new B();wh.cyl('x',[sg*64.5,21,0],19.4,13,36);add('wheel',wh,0xc4ccd2,1,{dir:[sg*50,0,0]});
+    var wc=new B();wc.cyl('x',[sg*64.5,21,0],21,5,20);add('wheel',wc,0x2b3238,1,{dir:[sg*50,0,0]});
+  });
+  // caster
+  var cp=new B();cp.box(-16.5,16.5,33.1,34.5,-54.5,-17.5,true);cp.cyl('y',[0,30.6,-36],5.1,9,24);
+  add('caster',cp,STEEL,1,{dir:[0,-60,0]});
+  var cf=new B();cf.box(-8.5,-6.9,12,29,-46,-34);cf.box(6.9,8.5,12,29,-46,-34);cf.cyl('x',[0,14,-44],18,1.4,10);add('caster',cf,0x7f8b94,1,{dir:[0,-60,0]});
+  var cw=new B();cw.cyl('x',[0,14,-44],12.8,14,32);add('caster',cw,RUB,1,{dir:[0,-60,0]});
+  var cwh=new B();cwh.cyl('x',[0,14,-44],13.2,7,20);add('caster',cwh,0xc4ccd2,1,{dir:[0,-60,0]});
+  // sensor wall, notch at the top for the header
+  var wl=new B();wl.box(-25,-6.5,42,68,49,55);wl.box(6.5,25,42,68,49,55);wl.box(-6.5,6.5,42,68,49,51.5);wl.box(-6.5,6.5,42,47,51.5,55);add('wall',wl,PLA,1);
+  // sonar board upside down on the wall
+  var sb=new B();sb.box(-22.5,22.5,44,64,55,56.6,true);add('sensor',sb,PCBB,1,{dir:[0,0,30]});
+  var st=new B(),sf=new B();[-13,13].forEach(function(x){st.cyl('z',[x,54,62.6],12,8,30);sf.cyl('z',[x,54,68.7],0.2,6.5,26);});
+  add('sensor',st,0xb4bcc2,1,{dir:[0,0,30]});add('sensor',sf,0x2a2f33,1,{dir:[0,0,30]});
+  var sh=new B(),sp=new B();sh.box(-5.1,5.1,59.5,64,52.5,55);for(i=0;i<4;i++){sp.cyl('y',[-3.81+i*2.54,67,53.7],6,0.35,6);}
+  add('sensor',sh,0x15181b,1,{dir:[0,0,30]});add('sensor',sp,BRASS,1,{dir:[0,0,30]});
+  // battery holder and two cells
+  var hb=new B();hb.box(-20.4,20.4,40.5,44,-37.25,37.25);hb.box(-20.4,20.4,44,58.2,-37.25,-35.25);hb.box(-20.4,20.4,44,58.2,35.25,37.25);hb.box(-20.4,-19.2,44,50,-35.25,35.25);hb.box(19.2,20.4,44,50,-35.25,35.25);hb.box(-0.6,0.6,44,52,-35.25,35.25);
+  add('battery',hb,0x2a2f34,1,{dir:[0,45,0]});
+  var ce=new B(),cc=new B();[-9.8,9.8].forEach(function(x){ce.cyl('z',[x,53.3,0],65,9.2,30);cc.cyl('z',[x,53.3,33],1.2,3.5,14);});
+  add('battery',ce,0x2f8a55,1,{dir:[0,45,0]});add('battery',cc,0xd5dadd,1,{dir:[0,45,0]});
+  // proposed boards
+  var eb=new B();eb.box(-50,-22,42,43.6,-54,-3,true);add('esp32',eb,0x1b1f26,0.9,{prop:true,dir:[0,70,0]});
+  var em=new B();em.box(-45,-27,43.6,46.6,-54,-28.5);em.box(-39,-33,43.6,46.6,-6,-1);add('esp32',em,0xc8ccd0,0.95,{prop:true,dir:[0,70,0]});
+  var eh=new B();eh.box(-49.4,-46.9,43.6,46.1,-52,-6);eh.box(-25.1,-22.6,43.6,46.1,-52,-6);add('esp32',eh,0x0f1114,0.95,{prop:true,dir:[0,70,0]});
+  var db=new B();db.box(-46,-26,42,43.6,8,27.5,true);add('driver',db,0x2a57a6,0.9,{prop:true,dir:[0,70,0]});
+  var dc=new B();dc.box(-40,-32,43.6,45,14,21);dc.box(-45.6,-43.2,43.6,46.1,9,26);dc.box(-28.8,-26.4,43.6,46.1,9,26);add('driver',dc,0x15181b,0.95,{prop:true,dir:[0,70,0]});
+  [[-28.5],[30.5]].forEach(function(zz,k){
+    var z=zz[0],bb=new B();bb.box(26,52,42,43.6,z-24.5,z+24.5,true);add('buck',bb,0x1b5bb5,0.9,{prop:true,dir:[0,55,0]});
+    var bi=new B();bi.cyl('y',[36,47.6,z-6],8,7,24);add('buck',bi,0xb8923a,0.95,{prop:true,dir:[0,55,0]});
+    var bc=new B();bc.cyl('y',[45,49.6,z+12],12,4,18);bc.box(31,37,43.6,48.6,z+13,z+19);add('buck',bc,0x24292e,0.95,{prop:true,dir:[0,55,0]});
+  });
+  // floor grid
+  var g=[],k;for(k=-160;k<=160;k+=20){g.push(k,0,-160,k,0,160,-160,0,k,160,0,k);}
+  gridN=g.length/3;gridBuf={data:new Float32Array(g)};
+}
+
+/* ---- gl ---- */
+var prog,loc={},cubes=[];
+function sh(t,src){var s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s;}
+function initGL(){
+  gl=cv.getContext('webgl',{antialias:true})||cv.getContext('experimental-webgl');
+  if(!gl)throw new Error('no webgl');
+  prog=gl.createProgram();
+  gl.attachShader(prog,sh(gl.VERTEX_SHADER,'attribute vec3 aPos;attribute vec3 aNrm;uniform mat4 uVP;uniform vec3 uOff;varying vec3 vN;void main(){vN=aNrm;gl_Position=uVP*vec4(aPos+uOff,1.0);}'));
+  gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,'precision mediump float;varying vec3 vN;uniform vec4 uColor;uniform vec3 uEmis;uniform float uLit;void main(){vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=max(dot(n,normalize(vec3(0.45,0.85,0.55))),0.0);float f=max(dot(n,normalize(vec3(-0.3,-0.8,-0.4))),0.0);float h=0.5+0.5*n.y;vec3 c=uColor.rgb*(0.30+0.22*h+0.50*d+0.28*f);c=mix(uColor.rgb,c,uLit)+uEmis;gl_FragColor=vec4(c,uColor.a);}'));
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  loc.pos=gl.getAttribLocation(prog,'aPos');loc.nrm=gl.getAttribLocation(prog,'aNrm');
+  ['uVP','uOff','uColor','uEmis','uLit'].forEach(function(n){loc[n]=gl.getUniformLocation(prog,n);});
+  gl.enable(gl.DEPTH_TEST);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  objs.forEach(function(o){
+    o.bp=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,o.bp);gl.bufferData(gl.ARRAY_BUFFER,o.p,gl.STATIC_DRAW);
+    o.bn=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,o.bn);gl.bufferData(gl.ARRAY_BUFFER,o.n,gl.STATIC_DRAW);
+    if(o.e){o.be=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,o.be);gl.bufferData(gl.ARRAY_BUFFER,o.e,gl.STATIC_DRAW);}
+  });
+  gridBuf.b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,gridBuf.b);gl.bufferData(gl.ARRAY_BUFFER,gridBuf.data,gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(loc.pos);gl.enableVertexAttribArray(loc.nrm);
+}
+function readTheme(){
+  var cs=getComputedStyle(host).backgroundColor,m=cs.match(/[\d.]+/g);
+  if(m&&m.length>=3)bg=[m[0]/255,m[1]/255,m[2]/255];
+  var rule=getComputedStyle(document.documentElement).getPropertyValue('--rule').trim();
+  if(/^#[0-9a-f]{6}$/i.test(rule))gridCol=hex(parseInt(rule.slice(1),16));
+  var ac=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  if(/^#[0-9a-f]{6}$/i.test(ac))accent=hex(parseInt(ac.slice(1),16));
+  var ink=getComputedStyle(document.documentElement).getPropertyValue('--ink').trim();
+  if(/^#[0-9a-f]{6}$/i.test(ink))inkCol=hex(parseInt(ink.slice(1),16));
+  dirty=true;
+}
+function fit(){
+  if(!gl)return;
+  var dpr=Math.min(window.devicePixelRatio||1,2),w=host.clientWidth,h=host.clientHeight;
+  if(!w||!h)return;
+  cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);gl.viewport(0,0,cv.width,cv.height);dirty=true;
+}
+
+/* ---- state ---- */
+function sel(){return R.getSel?R.getSel():null;}
+function effective(){
+  var s=sel();
+  objs.forEach(function(o){
+    var f=1;
+    if(o.part==='plate')f=mode==='surface'?1:mode==='xray'?0.5:0.16;
+    else if(TOP[o.part]&&mode==='under')f=0.2;
+    var a=o.a*f;
+    o.ghost=!!(s&&o.part!==s);if(s&&o.part!==s)a*=0.4;
+    if(s&&o.part===s){a=Math.max(a,0.92);o.emis=1;}else o.emis=0;
+    o.eff=a;
+    o.vis=!(o.prop&&!boards);
+  });
+}
+function off(o){var e=expl;return [o.dir[0]*e,o.dir[1]*e,o.dir[2]*e];}
+
+/* ---- camera ---- */
+var VP=null,eye=[0,0,0],fwd=[0,0,0],rgt=[0,0,0],upv=[0,0,0],FOV=0.62;
+function camera(){
+  var cp=Math.cos(cam.pitch),sp=Math.sin(cam.pitch);
+  eye=[cam.tx+cam.dist*cp*Math.sin(cam.yaw),cam.ty+cam.dist*sp,cam.tz+cam.dist*cp*Math.cos(cam.yaw)];
+  var c=[cam.tx,cam.ty,cam.tz],up=[0,1,0];
+  var asp=cv.width/Math.max(cv.height,1);
+  VP=mul(persp(FOV,asp,10,2000),lookAt(eye,c,up));
+  var fx=c[0]-eye[0],fy=c[1]-eye[1],fz=c[2]-eye[2],l=Math.hypot(fx,fy,fz);fwd=[fx/l,fy/l,fz/l];
+  var rx=fwd[1]*0-fwd[2]*1,ry=fwd[2]*0-fwd[0]*0,rz=fwd[0]*1-fwd[1]*0;l=Math.hypot(rx,ry,rz);rgt=[rx/l,ry/l,rz/l];
+  upv=[rgt[1]*fwd[2]-rgt[2]*fwd[1],rgt[2]*fwd[0]-rgt[0]*fwd[2],rgt[0]*fwd[1]-rgt[1]*fwd[0]];
+}
+function draw(){
+  camera();effective();
+  gl.clearColor(bg[0],bg[1],bg[2],1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.uniformMatrix4fv(loc.uVP,false,VP);gl.uniform3f(loc.uOff,0,0,0);
+  // grid
+  gl.depthMask(true);gl.uniform1f(loc.uLit,0);gl.uniform4f(loc.uColor,gridCol[0],gridCol[1],gridCol[2],1);gl.uniform3f(loc.uEmis,0,0,0);
+  if(cam.pitch>0.02){gl.bindBuffer(gl.ARRAY_BUFFER,gridBuf.b);gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,0,0);gl.vertexAttribPointer(loc.nrm,3,gl.FLOAT,false,0,0);gl.drawArrays(gl.LINES,0,gridN);}
+  var op=[],tr=[];
+  objs.forEach(function(o){if(!o.vis||o.eff<0.02)return;(o.eff>=0.999?op:tr).push(o);});
+  function dist(o){var d=off(o),dx=o.c[0]+d[0]-eye[0],dy=o.c[1]+d[1]-eye[1],dz=o.c[2]+d[2]-eye[2];return dx*dx+dy*dy+dz*dz;}
+  tr.sort(function(a,b){return dist(b)-dist(a);});
+  function one(o,depthWrite){
+    var d=off(o);gl.uniform3f(loc.uOff,d[0],d[1],d[2]);
+    gl.depthMask(depthWrite);
+    var m=o.emis?0.42:0,tt=o.ghost?0.28:0,cr=o.col[0]+(accent[0]-o.col[0])*m,cg=o.col[1]+(accent[1]-o.col[1])*m,cb=o.col[2]+(accent[2]-o.col[2])*m;cr+=(inkCol[0]-cr)*tt;cg+=(inkCol[1]-cg)*tt;cb+=(inkCol[2]-cb)*tt;gl.uniform1f(loc.uLit,1);gl.uniform4f(loc.uColor,cr,cg,cb,o.eff);gl.uniform3f(loc.uEmis,0,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,o.bp);gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,o.bn);gl.vertexAttribPointer(loc.nrm,3,gl.FLOAT,false,0,0);
+    gl.enable(gl.POLYGON_OFFSET_FILL);gl.polygonOffset(1,1);gl.drawArrays(gl.TRIANGLES,0,o.nt);gl.disable(gl.POLYGON_OFFSET_FILL);
+    if(o.be){gl.uniform1f(loc.uLit,0);gl.uniform4f(loc.uColor,o.emis?accent[0]:inkCol[0],o.emis?accent[1]:inkCol[1],o.emis?accent[2]:inkCol[2],Math.min(1,o.eff*0.8));gl.uniform3f(loc.uEmis,0,0,0);
+      gl.bindBuffer(gl.ARRAY_BUFFER,o.be);gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,0,0);gl.vertexAttribPointer(loc.nrm,3,gl.FLOAT,false,0,0);gl.drawArrays(gl.LINES,0,o.ne);}
+  }
+  op.forEach(function(o){one(o,true);});
+  tr.forEach(function(o){one(o,false);});
+  gl.depthMask(true);
+}
+
+/* ---- picking (CPU ray vs triangles) ---- */
+function ray(px,py){
+  var r=cv.getBoundingClientRect(),nx=((px-r.left)/r.width)*2-1,ny=1-((py-r.top)/r.height)*2;
+  var t=Math.tan(FOV/2),asp=r.width/r.height;
+  var d=[fwd[0]+rgt[0]*nx*t*asp+upv[0]*ny*t,fwd[1]+rgt[1]*nx*t*asp+upv[1]*ny*t,fwd[2]+rgt[2]*nx*t*asp+upv[2]*ny*t];
+  var l=Math.hypot(d[0],d[1],d[2]);return [d[0]/l,d[1]/l,d[2]/l];
+}
+function pick(px,py){
+  if(!VP)return null;
+  var d=ray(px,py),best=null,bestT=1e9,bestSolid=null,bestSolidT=1e9;
+  objs.forEach(function(o){
+    if(!o.vis||o.eff<0.1)return;
+    var of=off(o),cx=o.c[0]+of[0]-eye[0],cy=o.c[1]+of[1]-eye[1],cz=o.c[2]+of[2]-eye[2];
+    var tc=cx*d[0]+cy*d[1]+cz*d[2];var dd=cx*cx+cy*cy+cz*cz-tc*tc;if(dd>o.rad*o.rad)return;
+    var p=o.p;
+    for(var i=0;i<p.length;i+=9){
+      var ax=p[i]+of[0]-eye[0],ay=p[i+1]+of[1]-eye[1],az=p[i+2]+of[2]-eye[2];
+      var e1x=p[i+3]-p[i],e1y=p[i+4]-p[i+1],e1z=p[i+5]-p[i+2],e2x=p[i+6]-p[i],e2y=p[i+7]-p[i+1],e2z=p[i+8]-p[i+2];
+      var hx=d[1]*e2z-d[2]*e2y,hy=d[2]*e2x-d[0]*e2z,hz=d[0]*e2y-d[1]*e2x;
+      var a=e1x*hx+e1y*hy+e1z*hz;if(Math.abs(a)<1e-9)continue;
+      var f=1/a,sx=-ax,sy=-ay,sz=-az;
+      var u=f*(sx*hx+sy*hy+sz*hz);if(u<0||u>1)continue;
+      var qx=sy*e1z-sz*e1y,qy=sz*e1x-sx*e1z,qz=sx*e1y-sy*e1x;
+      var v=f*(d[0]*qx+d[1]*qy+d[2]*qz);if(v<0||u+v>1)continue;
+      var t=f*(e2x*qx+e2y*qy+e2z*qz);if(t<=0)continue;
+      if(t<bestT){bestT=t;best=o.part;}
+      if(o.eff>=0.5&&t<bestSolidT){bestSolidT=t;bestSolid=o.part;}
+    }
+  });
+  return bestSolid||best;
+}
+
+/* ---- input ---- */
+var ptrs={},moved=0,downAt=0,pinch=0;
+cv.addEventListener('pointerdown',function(e){cv.setPointerCapture(e.pointerId);ptrs[e.pointerId]={x:e.clientX,y:e.clientY,b:e.button,shift:e.shiftKey};moved=0;downAt=performance.now();
+  var ks=Object.keys(ptrs);if(ks.length===2){var a=ptrs[ks[0]],b=ptrs[ks[1]];pinch=Math.hypot(a.x-b.x,a.y-b.y);}cv.style.cursor='grabbing';});
+cv.addEventListener('pointermove',function(e){
+  var p=ptrs[e.pointerId];
+  if(!p){ // hover
+    if(!visible||!inited)return;
+    var hit=pick(e.clientX,e.clientY);
+    cv.style.cursor=hit?'pointer':'grab';
+    if(hit&&R.byId&&R.byId[hit]){var r=host.getBoundingClientRect();tip.textContent=R.byId[hit].name;tip.hidden=false;tip.style.left=(e.clientX-r.left+12)+'px';tip.style.top=(e.clientY-r.top+14)+'px';}else tip.hidden=true;
+    return;
+  }
+  var dx=e.clientX-p.x,dy=e.clientY-p.y;moved+=Math.abs(dx)+Math.abs(dy);
+  var ks=Object.keys(ptrs);
+  if(ks.length===2){
+    var o=ptrs[ks[0]],o2=ptrs[ks[1]];p.x=e.clientX;p.y=e.clientY;
+    var nd=Math.hypot(o.x-o2.x,o.y-o2.y);if(pinch>0){cam.dist=Math.max(120,Math.min(700,cam.dist*pinch/nd));}pinch=nd;dirty=true;return;
+  }
+  p.x=e.clientX;p.y=e.clientY;
+  if(p.b===2||p.shift){var k=cam.dist*0.0016;cam.tx-=(rgt[0]*dx-upv[0]*dy)*k;cam.ty-=(rgt[1]*dx-upv[1]*dy)*k;cam.tz-=(rgt[2]*dx-upv[2]*dy)*k;}
+  else{cam.yaw-=dx*0.008;cam.pitch=Math.max(-1.45,Math.min(1.45,cam.pitch+dy*0.008));}
+  dirty=true;
+});
+function up(e){
+  var p=ptrs[e.pointerId];delete ptrs[e.pointerId];cv.style.cursor='grab';pinch=0;
+  if(p&&moved<6&&performance.now()-downAt<500&&p.b===0){var hit=pick(e.clientX,e.clientY);if(hit&&R.select)R.select(hit);}
+}
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',function(e){delete ptrs[e.pointerId];pinch=0;});
+cv.addEventListener('pointerleave',function(){tip.hidden=true;});
+cv.addEventListener('wheel',function(e){e.preventDefault();cam.dist=Math.max(120,Math.min(700,cam.dist*(1+Math.sign(e.deltaY)*0.08)));dirty=true;},{passive:false});
+cv.addEventListener('contextmenu',function(e){e.preventDefault();});
+cv.addEventListener('keydown',function(e){
+  var k=e.key,s=0.08;
+  if(k==='ArrowLeft'){cam.yaw+=s;}else if(k==='ArrowRight'){cam.yaw-=s;}else if(k==='ArrowUp'){cam.pitch=Math.min(1.45,cam.pitch+s);}else if(k==='ArrowDown'){cam.pitch=Math.max(-1.45,cam.pitch-s);}else if(k==='+'||k==='='){cam.dist=Math.max(120,cam.dist*0.92);}else if(k==='-'){cam.dist=Math.min(700,cam.dist*1.08);}else return;
+  e.preventDefault();dirty=true;
+});
+
+/* ---- ui ---- */
+var PRE={iso:{yaw:0.62,pitch:0.5,dist:300,tx:0,ty:28,tz:0},top:{yaw:0,pitch:1.45,dist:330,tx:0,ty:28,tz:0},side:{yaw:Math.PI/2,pitch:0.04,dist:360,tx:0,ty:34,tz:0},front:{yaw:0,pitch:0.04,dist:360,tx:0,ty:34,tz:0},under:{yaw:0.62,pitch:-0.9,dist:340,tx:0,ty:28,tz:0}};
+Array.prototype.forEach.call(document.querySelectorAll('[data-cam]'),function(b){b.addEventListener('click',function(){var p=PRE[b.getAttribute('data-cam')];for(var k in p)cam[k]=p[k];dirty=true;});});
+var ex=document.getElementById('explode');
+if(ex)ex.addEventListener('input',function(){explTarget=+ex.value/100;dirty=true;});
+var sp=document.getElementById('spin');
+if(sp)sp.addEventListener('change',function(){spin=sp.checked&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;dirty=true;});
+function loop(){
+  if(!visible){looping=false;return;}
+  if(Math.abs(expl-explTarget)>0.002){expl+=(explTarget-expl)*0.18;dirty=true;}else if(expl!==explTarget){expl=explTarget;dirty=true;}
+  if(spin&&!Object.keys(ptrs).length){cam.yaw+=0.004;dirty=true;}
+  if(dirty&&gl){dirty=false;try{draw();}catch(err){}}
+  requestAnimationFrame(loop);
+}
+function start(){
+  if(inited||failed)return;
+  try{
+    buildScene();initGL();inited=true;
+    if(window.ResizeObserver)new ResizeObserver(fit).observe(host);else window.addEventListener('resize',fit);
+    if(window.matchMedia)window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){setTimeout(readTheme,50);});
+    new MutationObserver(function(){setTimeout(readTheme,50);}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  }catch(err){
+    failed=true;host.innerHTML='<p style="padding:20px;color:var(--ink2);max-width:52ch">The 3D view needs WebGL, which this browser did not give the page. The plan and side views show the same parts.</p>';
+  }
+}
+window.rover3d={
+  show:function(v){visible=v;if(v){start();if(inited){readTheme();fit();dirty=true;if(!looping){looping=true;loop();}}}},
+  refresh:function(){dirty=true;},
+  setMode:function(m){mode=m;dirty=true;},
+  setBoards:function(b){boards=b;dirty=true;}
+};
+})();
+
 </script>
 
 </body>
